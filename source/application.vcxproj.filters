@@ -35,6 +35,10 @@
     <ClCompile Include="Renderer.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="ShapeBatch.cpp" />
+    <ClCompile Include="Vector2.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -73,6 +77,10 @@
     <ClInclude Include="Renderer.h">
       <Filter>Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="ShapeBatch.h" />
+    <ClInclude Include="Vector2.h">
+      <Filter>Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
@@ -81,5 +89,16 @@
     <Filter Include="Util">
       <UniqueIdentifier>{819184a3-5c62-4fa2-867a-89ea0ee49277}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{eb5bde32-9600-4d01-9ee0-4d366ec83076}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\build\data\quadBatch.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\quadBatch.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

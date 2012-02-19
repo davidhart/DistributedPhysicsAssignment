@@ -65,43 +65,19 @@ void Renderer::DrawInstances(VertexBinding& binding, ePrimitive primitive, unsig
 	binding.Unbind();
 }
 
-void Renderer::ProjectionMatrix(const Matrix4& projection)
-{
-	_projection = projection;
-}
-
 void Renderer::ViewMatrix(const Matrix4& view)
 {
 	_view = view;
 }
 
-void Renderer::ClipPlane(const Vector4& clipPlane)
-{
-	_clipPlane = clipPlane;
-}
-
-void Renderer::SetAmbient(const Vector3& ambient)
-{
-	_ambient = ambient;
-}
-
 void Renderer::UpdateStandardUniforms(const ShaderProgram& shaderprogram, const StandardUniformBlock& uniforms) const
 {
-	// TODO: replace these
 	shaderprogram.SetUniform(uniforms.View, _view);
-	shaderprogram.SetUniform(uniforms.Projection, _projection);
-	shaderprogram.SetUniform(uniforms.ClipPlane, _clipPlane);
-	shaderprogram.SetUniform(uniforms.Ambient, _ambient);
 }
 
 void Renderer::GetStandardUniforms(const ShaderProgram& shaderProgram, StandardUniformBlock & uniforms) const
 {
-	uniforms.Model = shaderProgram.GetUniform("model");
 	uniforms.View = shaderProgram.GetUniform("view");
-	uniforms.Projection = shaderProgram.GetUniform("projection");
-	uniforms.ClipPlane = shaderProgram.GetUniform("clipPlane");
-
-	uniforms.Ambient = shaderProgram.GetUniform("ambient");
 }
 
 void Renderer::EnableCullFace(bool enable) const

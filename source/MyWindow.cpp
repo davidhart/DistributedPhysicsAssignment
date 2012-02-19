@@ -10,9 +10,9 @@ MyWindow::MyWindow() :
 	_prevKeyStatePlus(false),
 	_prevKeyStateMinus(false)
 {
+	SetTitle("Simulation and Concurrency");
 	SetSize(1280, 768);
-	SetStencilBits(8);
-	SetDepthBits(24);
+	SetDoubleBuffer(true);
 }
 
 void MyWindow::OnCreate()

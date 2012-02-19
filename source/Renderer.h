@@ -66,12 +66,7 @@ public:
 
 	struct StandardUniformBlock
 	{
-		Uniform Model;
 		Uniform View;
-		Uniform Projection;
-		Uniform ClipPlane;
-
-		Uniform Ambient;
 	};
 
 	Renderer();
@@ -82,11 +77,7 @@ public:
 	void Draw(VertexBinding& binding, ePrimitive primitive, unsigned int offset, unsigned int indices) const;
 	void DrawInstances(VertexBinding& binding, ePrimitive primitive, unsigned int offset, unsigned int indices, unsigned int instances) const;
 
-	void ProjectionMatrix(const Matrix4& projection);
 	void ViewMatrix(const Matrix4& view);
-	void ClipPlane(const Vector4& plane);
-
-	void SetAmbient(const Vector3& ambient);
 
 	void UpdateStandardUniforms(const ShaderProgram& shader, const StandardUniformBlock& uniforms) const;
 	void GetStandardUniforms(const ShaderProgram& shader, StandardUniformBlock& uniforms) const;
@@ -112,10 +103,7 @@ public:
 
 private:
 
-	Vector3 _ambient;
 	Matrix4 _view;
-	Matrix4 _projection;
-	Vector4 _clipPlane;
 	glex* _glex;
 
 };

@@ -7,16 +7,9 @@
 #pragma once
 
 #include "Renderer.h"
+#include "ShapeBatch.h"
 
 class MyWindow;
-
-enum eCameraKey
-{
-	KEY_UP = 0,
-	KEY_DOWN = 1,
-	KEY_LEFT = 2,
-	KEY_RIGHT = 3,
-};
 
 class Application
 {
@@ -32,6 +25,9 @@ public:
 
 private:
 
-	Renderer _renderer;
+	float _rotation;
 
+	Renderer _renderer;
+	ShapeBatch _shapeBatch;
+	QuadArray _quads;
 };
