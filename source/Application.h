@@ -25,9 +25,9 @@ public:
 
 private:
 
-	float _rotation;
-
+	Matrix4 _view;
 	Renderer _renderer;
 	ShapeBatch _shapeBatch;
 	QuadArray _quads;
+	float _rotation;
 };

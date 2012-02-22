@@ -28,11 +28,18 @@ void ShapeBatch::Create(const Renderer& renderer)
 	_quadFragShader.CreateFromFile(renderer, "data/quadBatch.frag");
 	_quadShader.Create(renderer, _quadVertShader, _quadFragShader);
 
+	renderer.GetStandardUniforms(_quadShader, _quadUniforms);
+
 	_quadBatchColor = _quadShader.GetUniform("color");
 }
 
 void ShapeBatch::Dispose()
 {
+	for (unsigned int i = 0; i < _quadArrays.size(); ++i)
+	{
+		_quadArrays[i]->Dispose();
+	}
+
 	_quadShader.Dispose();
 	_quadVertShader.Dispose();
 	_quadFragShader.Dispose();
@@ -61,9 +68,14 @@ void ShapeBatch::DrawQuadArray(const Renderer& renderer, QuadArray* quadArray)
 	if (quadArray->GetSize() == 0)
 		return;
 
-	UpdateQuadArray(renderer, quadArray);
+	if (quadArray->_needsUpdate)
+	{
+		UpdateQuadArray(renderer, quadArray);
+		quadArray->_needsUpdate = false;
+	}
 
 	_quadShader.SetUniform(_quadBatchColor, quadArray->_color);
+	renderer.UpdateStandardUniforms(_quadShader, _quadUniforms);
 
 	renderer.DrawInstances(quadArray->_bufferBinding, PT_TRIANGLES, 0, 6, quadArray->GetSize());
 }
@@ -109,14 +121,21 @@ void ShapeBatch::RemoveQuadArray(QuadArray* quadArray)
 		return;
 	}
 
+	(*it)->Dispose();
 	_quadArrays.erase(it);
 }
 
 QuadArray::QuadArray() :
 	_color(1.0f, 1.0f, 1.0f, 1.0f),
-	_needsDisposing(false)
+	_needsDisposing(false),
+	_needsUpdate(false)
 {
 
+}
+
+QuadArray::~QuadArray()
+{
+	assert(!_needsDisposing);
 }
 
 void QuadArray::Dispose()
@@ -125,5 +144,6 @@ void QuadArray::Dispose()
 	{
 		_bufferBinding.Dispose();
 		_quadInstanceBuffer.Dispose();
+		_needsDisposing = false;
 	}
 }

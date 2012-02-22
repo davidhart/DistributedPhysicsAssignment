@@ -34,6 +34,7 @@ public:
 	static void Scale(Matrix4& out, float scale);
 	static void Scale(Matrix4& out, const Vector3& scale);
 	static void RotationAxis(Matrix4& out, const Vector3& axis, float angle);
+	static void Ortho2D(Matrix4& out, const float left, float right, float top, float bottom);
 	
 private:
 
@@ -191,6 +192,16 @@ inline void Matrix4::RotationAxis(Matrix4& out, const Vector3& axis, float angle
 		axisZSquared + (1 - axisZSquared) * cosTheta,
 		0),
 		Vector4(0, 0, 0, 1));
+}
+
+inline void Matrix4::Ortho2D(Matrix4& out, float left, float right, float top, float bottom)
+{
+	float rightMinusLeft = right - left;
+	float topMinusBottom = top - bottom;
+	out = Matrix4(Vector4(2 / rightMinusLeft, 0, 0, 0),
+				  Vector4(0, 2 / topMinusBottom, 0, 0),
+				  Vector4(0, 0, 1, 0),
+				  Vector4(-(right + left) / rightMinusLeft, - (top + bottom) / topMinusBottom, 0, 1));
 }
 
 inline Matrix4 Matrix4::operator* (const Matrix4& rhs) const

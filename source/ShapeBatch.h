@@ -5,13 +5,13 @@
 #include "ShaderProgram.h"
 #include "VertexBinding.h"
 #include "VertexBuffer.h"
+#include "Renderer.h"
 #include "Shader.h"
 #include "Vector2.h"
 #include "Vector4.h"
 #include <vector>
 #include <cassert>
 
-class Renderer;
 class QuadArray;
 
 struct Quad
@@ -43,6 +43,7 @@ private:
 	ShaderProgram _quadShader;
 	VertexBuffer _quadBuffer;
 	VertexBuffer _quadIndices;
+	Renderer::StandardUniformBlock _quadUniforms;
 	Uniform _quadBatchColor;
 
 	std::vector<QuadArray*> _quadArrays;
@@ -57,21 +58,24 @@ class QuadArray
 public:
 	
 	QuadArray();
+	~QuadArray();
 	void SetSize(unsigned int size);
 	unsigned int GetSize();
-	Quad& GetQuad(unsigned int index);
+	void SetQuad(unsigned int index, const Quad& quad);
+	Quad GetQuad(unsigned int index);
 	void SetColor(const Vector4& color);
 	Vector4 GetColor();
 
-	void Dispose();
-
 private:
+
+	void Dispose();
 
 	std::vector<Quad> _quads;
 	VertexBuffer _quadInstanceBuffer;
 	VertexBinding _bufferBinding;
 	Vector4 _color;
 	bool _needsDisposing;
+	bool _needsUpdate;
 
 };
 
@@ -85,7 +89,15 @@ inline unsigned int QuadArray::GetSize()
 	return _quads.size();
 }
 
-inline Quad& QuadArray::GetQuad(unsigned int index)
+inline void QuadArray::SetQuad(unsigned int index, const Quad& quad)
+{
+	assert(index < _quads.size());
+
+	_quads[index] = quad;
+	_needsUpdate = true;
+}
+
+inline Quad QuadArray::GetQuad(unsigned int index)
 {
 	assert(index < _quads.size());
 
