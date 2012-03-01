@@ -4,6 +4,8 @@
 #include "MyWindow.h"
 #include <iostream>
 
+#include "Thread.h"
+
 Application::Application()
 {
 
@@ -17,7 +19,7 @@ void Application::Create(MyWindow& window)
 
 	_rotation = 0;
 
-	_quads.SetSize(2500);
+	_quads.SetSize(10000);
 
 	Quad quad;
 
@@ -31,6 +33,32 @@ void Application::Create(MyWindow& window)
 			_quads.SetQuad(i+j*50, quad);
 		}
 	}
+
+	class TestStart : public ThreadStart
+	{
+	public:
+		
+		int sleepTime;
+
+		unsigned Start()
+		{
+			Sleep(sleepTime);
+			std::cout << "Thread Exited!" << std::endl;
+			return 0;
+		}
+	};
+
+	Thread threadA;
+	Thread threadB;
+
+	TestStart a; a.sleepTime = 500;
+	TestStart b; b.sleepTime = 1000;
+
+	threadA.Start(a);
+	threadB.Start(b);
+
+	threadB.Join();
+	threadA.Join();
 
 	_shapeBatch.AddQuadArray(&_quads);
 }

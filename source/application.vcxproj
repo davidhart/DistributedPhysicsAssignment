@@ -89,6 +89,7 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderProgram.cpp" />
     <ClCompile Include="ShapeBatch.cpp" />
+    <ClCompile Include="Thread.cpp" />
     <ClCompile Include="Uncopyable.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="Vector2.cpp" />
@@ -108,6 +109,7 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderProgram.h" />
     <ClInclude Include="ShapeBatch.h" />
+    <ClInclude Include="Thread.h" />
     <ClInclude Include="Uncopyable.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Vector2.h" />

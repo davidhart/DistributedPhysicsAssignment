@@ -42,6 +42,9 @@
     <ClCompile Include="Color.cpp">
       <Filter>Util</Filter>
     </ClCompile>
+    <ClCompile Include="Thread.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -85,6 +88,9 @@
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="Color.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Thread.h">
       <Filter>Util</Filter>
     </ClInclude>
   </ItemGroup>
