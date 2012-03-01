@@ -9,6 +9,7 @@
 #include "Shader.h"
 #include "Vector2.h"
 #include "Vector4.h"
+#include "Color.h"
 #include <vector>
 #include <cassert>
 
@@ -18,7 +19,7 @@ struct Quad
 {
 	Vector2 _position;
 	float _rotation;
-	// TODO: Add Vector2 size?
+	Color _color;
 };
 
 class ShapeBatch
@@ -44,7 +45,6 @@ private:
 	VertexBuffer _quadBuffer;
 	VertexBuffer _quadIndices;
 	Renderer::StandardUniformBlock _quadUniforms;
-	Uniform _quadBatchColor;
 
 	std::vector<QuadArray*> _quadArrays;
 
@@ -63,8 +63,6 @@ public:
 	unsigned int GetSize();
 	void SetQuad(unsigned int index, const Quad& quad);
 	Quad GetQuad(unsigned int index);
-	void SetColor(const Vector4& color);
-	Vector4 GetColor();
 
 private:
 
@@ -73,7 +71,6 @@ private:
 	std::vector<Quad> _quads;
 	VertexBuffer _quadInstanceBuffer;
 	VertexBinding _bufferBinding;
-	Vector4 _color;
 	bool _needsDisposing;
 	bool _needsUpdate;
 
@@ -102,14 +99,4 @@ inline Quad QuadArray::GetQuad(unsigned int index)
 	assert(index < _quads.size());
 
 	return _quads[index];
-}
-
-inline void QuadArray::SetColor(const Vector4& color)
-{
-	_color = color;
-}
-
-inline Vector4 QuadArray::GetColor()
-{
-	return _color;
 }

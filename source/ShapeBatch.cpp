@@ -29,8 +29,6 @@ void ShapeBatch::Create(const Renderer& renderer)
 	_quadShader.Create(renderer, _quadVertShader, _quadFragShader);
 
 	renderer.GetStandardUniforms(_quadShader, _quadUniforms);
-
-	_quadBatchColor = _quadShader.GetUniform("color");
 }
 
 void ShapeBatch::Dispose()
@@ -74,7 +72,6 @@ void ShapeBatch::DrawQuadArray(const Renderer& renderer, QuadArray* quadArray)
 		quadArray->_needsUpdate = false;
 	}
 
-	_quadShader.SetUniform(_quadBatchColor, quadArray->_color);
 	renderer.UpdateStandardUniforms(_quadShader, _quadUniforms);
 
 	renderer.DrawInstances(quadArray->_bufferBinding, PT_TRIANGLES, 0, 6, quadArray->GetSize());
@@ -93,10 +90,11 @@ void ShapeBatch::UpdateQuadArray(const Renderer& renderer, QuadArray* quadArray)
 		const ArrayElement vertexLayout [] =
 		{
 			ArrayElement(_quadBuffer, "in_vertex", 2, AE_FLOAT, sizeof(float)*2, 0, 0),
-			ArrayElement(quadArray->_quadInstanceBuffer, "in_positionRotation", 3, AE_FLOAT, sizeof(float)*3, 0, 1), 
+			ArrayElement(quadArray->_quadInstanceBuffer, "in_positionRotation", 3, AE_FLOAT, sizeof(Quad), 0, 1),
+			ArrayElement(quadArray->_quadInstanceBuffer, "in_color", 4, AE_UBYTE, sizeof(Quad), sizeof(float)*3, 1), 
 		};
 
-		quadArray->_bufferBinding.Create(renderer, _quadShader, vertexLayout, 2, _quadIndices, AE_UINT); 
+		quadArray->_bufferBinding.Create(renderer, _quadShader, vertexLayout, 3, _quadIndices, AE_UINT); 
 	}
 	else
 	{
@@ -126,7 +124,6 @@ void ShapeBatch::RemoveQuadArray(QuadArray* quadArray)
 }
 
 QuadArray::QuadArray() :
-	_color(1.0f, 1.0f, 1.0f, 1.0f),
 	_needsDisposing(false),
 	_needsUpdate(false)
 {

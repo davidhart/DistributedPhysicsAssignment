@@ -39,6 +39,9 @@
     <ClCompile Include="Vector2.cpp">
       <Filter>Util</Filter>
     </ClCompile>
+    <ClCompile Include="Color.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -79,6 +82,9 @@
     </ClInclude>
     <ClInclude Include="ShapeBatch.h" />
     <ClInclude Include="Vector2.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Color.h">
       <Filter>Util</Filter>
     </ClInclude>
   </ItemGroup>

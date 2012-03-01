@@ -17,14 +17,20 @@ void Application::Create(MyWindow& window)
 
 	_rotation = 0;
 
-	_quads.SetColor(Vector4(0.5f, 1.0f, 0.5f, 1.0f));
-	_quads.SetSize(2);
+	_quads.SetSize(2500);
 
 	Quad quad;
-	quad._position = Vector2(1.0f, 1.0f);
+
 	quad._rotation = 0;
 
-	_quads.SetQuad(0, quad);
+	for (int i = 0; i < 50; i++)
+	{
+		for (int j = 0; j < 50; j++)
+		{
+			quad._position = Vector2(i-25.0f, j-25.0f);
+			_quads.SetQuad(i+j*50, quad);
+		}
+	}
 
 	_shapeBatch.AddQuadArray(&_quads);
 }
@@ -38,6 +44,15 @@ void Application::Draw()
 
 void Application::Update(float delta)
 {
+	for (unsigned int i = 0; i < _quads.GetSize(); i++)
+	{
+		Quad q = _quads.GetQuad(i);
+
+		q._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
+
+		_quads.SetQuad(i, q);
+	}
+
 	_rotation = fmod(delta + _rotation, PI*2);
 	Quad q = _quads.GetQuad(0);
 	q._rotation = _rotation;

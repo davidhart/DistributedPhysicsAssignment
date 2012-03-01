@@ -91,9 +91,13 @@ void VertexBinding::SetupAttribPointers(const ShaderProgram& shaderProram, const
 			type = GL_FLOAT;
 		else if (AE_INT == element.type)
 			type = GL_INT;
+		else if (AE_UBYTE == element.type)
+			type = GL_UNSIGNED_BYTE;
+		else if (AE_USHORT == element.type)
+			type = GL_UNSIGNED_SHORT;
 
 		_glex->glEnableVertexAttribArray(attribLocation);
-		_glex->glVertexAttribPointer(attribLocation, element.numComponents, type, GL_FALSE, element.stride,
+		_glex->glVertexAttribPointer(attribLocation, element.numComponents, type, GL_TRUE, element.stride,
 				(void*)element.offset);
 
 		_glex->glVertexAttribDivisorARB(attribLocation, element.instanceStep);

@@ -45,4 +45,14 @@ namespace Util
 	{
 		return radians * 180.0f / PI;
 	}
+
+	inline float ByteToFloatColorComponent(unsigned char channel)
+	{
+		return channel / 255.0f;
+	}
+
+	inline unsigned char FloatToByteColorComponent(float channel)
+	{
+		return (unsigned char)(channel * 255.0f);
+	}
 };
