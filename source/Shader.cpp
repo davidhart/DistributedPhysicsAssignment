@@ -87,3 +87,8 @@ FragmentShader::FragmentShader()
 {
 	SetType(GL_FRAGMENT_SHADER);
 }
+
+GeometryShader::GeometryShader()
+{
+	SetType(GL_GEOMETRY_SHADER);
+}

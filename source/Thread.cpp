@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #include "Thread.h"
 #include <process.h>
 
@@ -19,6 +21,7 @@ void Thread::Start(ThreadStart& start)
 void Thread::Join()
 {
 	WaitForSingleObject(_threadHandle, INFINITE);
+	// TODO: argument for wait duration
 }
 
 unsigned __stdcall Thread::ThreadStartBootstrap(void* data)

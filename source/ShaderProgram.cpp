@@ -28,6 +28,27 @@ ShaderProgram::~ShaderProgram()
 
 void ShaderProgram::Create(const Renderer& renderer, const VertexShader& vertexShader, const FragmentShader& fragmentShader)
 {
+	Create(renderer);
+
+	_glex->glAttachShader(_spHandle, vertexShader._shHandle);
+	_glex->glAttachShader(_spHandle, fragmentShader._shHandle);
+
+	Link();
+}
+
+void ShaderProgram::Create(const Renderer& renderer, const VertexShader& vertexShader, const FragmentShader& fragmentShader, const GeometryShader& geometryShader)
+{
+	Create(renderer);
+
+	_glex->glAttachShader(_spHandle, vertexShader._shHandle);
+	_glex->glAttachShader(_spHandle, fragmentShader._shHandle);
+	_glex->glAttachShader(_spHandle, geometryShader._shHandle);
+
+	Link();
+}
+
+void ShaderProgram::Create(const Renderer& renderer)
+{
 	if (_spHandle != 0)
 		Dispose();
 
@@ -36,10 +57,10 @@ void ShaderProgram::Create(const Renderer& renderer, const VertexShader& vertexS
 	_glex = renderer.GetEx();
 
 	_spHandle = _glex->glCreateProgram();
+}
 
-	_glex->glAttachShader(_spHandle, vertexShader._shHandle);
-	_glex->glAttachShader(_spHandle, fragmentShader._shHandle);
-
+void ShaderProgram::Link()
+{
 	_glex->glLinkProgram(_spHandle);
 
 #ifdef DEBUG
@@ -105,7 +126,6 @@ void ShaderProgram::SetUniform(const Uniform& uniform, const Vector3& value) con
 		_glex->glUniform3fv(uniform._location, 1, (const float*)&value);
 	}
 }
-
 void ShaderProgram::SetUniform(const Uniform& uniform, float value) const
 {
 	if (uniform._location >= 0)

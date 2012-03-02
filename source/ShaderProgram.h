@@ -44,6 +44,7 @@ public:
 	~ShaderProgram();
 
 	void Create(const Renderer& renderer, const VertexShader& vertexShader, const FragmentShader& fragmentShader);
+	void Create(const Renderer& renderer, const VertexShader& vertexShader, const FragmentShader& fragmentShader, const GeometryShader& geometryShader);
 	void Dispose();
 
 	int GetAttributeIndex(const char* attribute) const;
@@ -58,6 +59,9 @@ public:
 	void Use();
 
 private:
+
+	void Create(const Renderer& renderer);
+	void Link();
 
 	glex* _glex;
 	GLuint _spHandle;

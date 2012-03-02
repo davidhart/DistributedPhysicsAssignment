@@ -57,3 +57,24 @@ public:
 	FragmentShader();
 
 };
+
+enum eGeometryInput
+{
+	GI_POINTS = GL_POINTS,
+	GI_TRIANGLES = GL_TRIANGLES,
+};
+
+enum eGeometryOutput
+{
+	GO_POINTS = GL_POINTS,
+	GO_TRIANGLES = GL_TRIANGLES,
+};
+
+class GeometryShader : public Shader
+{
+
+public:
+
+	GeometryShader();
+
+};

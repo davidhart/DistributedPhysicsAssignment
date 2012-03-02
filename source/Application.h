@@ -29,5 +29,6 @@ private:
 	Renderer _renderer;
 	ShapeBatch _shapeBatch;
 	QuadArray _quads;
+	TriangleArray _triangles;
 	float _rotation;
 };

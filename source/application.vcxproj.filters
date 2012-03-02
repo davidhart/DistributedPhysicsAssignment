@@ -112,5 +112,14 @@
     <None Include="..\build\data\quadBatch.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\build\data\triangleBatch.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\triangleBatch.geom">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\triangleBatch.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
