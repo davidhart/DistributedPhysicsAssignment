@@ -6,6 +6,8 @@
 #include <cassert>
 #include <exception>
 
+const GLenum BUFFER_USAGE = GL_STREAM_DRAW;
+
 VertexBuffer::VertexBuffer() :
 	_glex(NULL),
 	_vbSize(0),
@@ -16,6 +18,21 @@ VertexBuffer::VertexBuffer() :
 VertexBuffer::~VertexBuffer()
 {
 	assert(_vbHandle == 0);
+}
+
+void VertexBuffer::Create(const Renderer& renderer)
+{
+	if (_vbHandle != 0)
+		Dispose();
+
+	assert(_vbHandle == 0);
+
+	_glex = renderer.GetEx();
+
+	_glex->glGenBuffers(1, &_vbHandle);
+	_vbSize = 0;
+
+	assert(_vbHandle != 0);
 }
 
 void VertexBuffer::Create(const Renderer& renderer, const void* data, unsigned int size)
@@ -35,9 +52,26 @@ void VertexBuffer::Create(const Renderer& renderer, const void* data, unsigned i
 
 	_glex->glBindBuffer(GL_ARRAY_BUFFER, _vbHandle);
 
-	_glex->glBufferData(GL_ARRAY_BUFFER, size, (void*)data, GL_DYNAMIC_DRAW);
+	_glex->glBufferData(GL_ARRAY_BUFFER, size, (void*)data, BUFFER_USAGE);
 
 	_glex->glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void VertexBuffer::SetData(const void* data, unsigned int size)
+{
+	// No need to resize buffer if the size matches
+	if (size == _vbSize)
+	{
+		UpdateRegion(0, data, size);
+		return;
+	}
+
+	assert(_vbHandle != 0);
+
+	_glex->glBindBuffer(GL_ARRAY_BUFFER, _vbHandle);
+	_glex->glBufferData(GL_ARRAY_BUFFER, size, data, BUFFER_USAGE);
+
+	_vbSize = size;
 }
 
 void VertexBuffer::UpdateRegion(unsigned int offset, const void* newdata, unsigned int size)
@@ -48,8 +82,6 @@ void VertexBuffer::UpdateRegion(unsigned int offset, const void* newdata, unsign
 	_glex->glBindBuffer(GL_ARRAY_BUFFER, _vbHandle);
 
 	_glex->glBufferSubData(GL_ARRAY_BUFFER, offset, size, (void*)newdata);
-
-	_glex->glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void VertexBuffer::Dispose()

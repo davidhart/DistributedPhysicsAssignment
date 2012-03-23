@@ -4,9 +4,9 @@
 #include "MyWindow.h"
 #include <iostream>
 
-#include "Thread.h"
-
-Application::Application()
+Application::Application() :
+	_readState(_stateBuffers + 0),
+	_writeState(_stateBuffers + 1)
 {
 
 }
@@ -15,42 +15,24 @@ void Application::Create(MyWindow& window)
 {
 	_renderer.Create(&window);
 
-	_shapeBatch.Create(_renderer);
+	_shapeBatch.Create(&_renderer);
 
 	_rotation = 0;
-
-	_quads.SetSize(25*50);
-
-	Quad quad;
-
-	quad._rotation = 0;
 
 	for (int i = 0; i < 25; i++)
 	{
 		for (int j = 0; j < 50; j++)
 		{
-			quad._position = Vector2(i-25.0f, j-25.0f);
-			_quads.SetShape(i+j*25, quad);
+			Quad& q = _readState->_quads[i + j * 25];
+
+			q._position = Vector2(i-25.0f, j-25.0f);
+			q._rotation = 0;
+			q._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
 		}
 	}
 
-	class TestStart : public ThreadStart
-	{
-	public:
-		
-		int sleepTime;
-
-		unsigned Start()
-		{
-			Sleep(sleepTime);
-			std::cout << "Thread Exited!" << std::endl;
-			return 0;
-		}
-	};
-
-	_shapeBatch.AddQuadArray(&_quads);
-
-	_triangles.SetSize(25 * 50 * 2);
+	_shapeBatch.AddQuadArray(&_quadBuffer);
+	_quadBuffer.SetShapes(_readState->_quads, WorldState::NUM_QUADS);
 
 	Triangle t;
 	t._color = Color(1.0f, 0.0f, 0.0f);
@@ -59,31 +41,24 @@ void Application::Create(MyWindow& window)
 	{
 		for (int j = 0; j < 50; j++)
 		{
-			t._points[0] = Vector2(1 + i - 1.0f, 0 + j - 25.0f);
-			t._points[1] = Vector2(0 + i - 1.0f, 0 + j - 25.0f);
-			t._points[2] = Vector2(0 + i - 1.0f, 1 + j - 25.0f);
+			Triangle& t1 = _readState->_triangles[i + j * 25];
+			Triangle& t2 = _readState->_triangles[i + j * 25 + 25 * 50];
 
-			_triangles.SetShape(i + j * 25, t);
-
-			t._points[1] = Vector2(1 + i - 1.0f, 1 + j - 25.0f);
-
-			_triangles.SetShape(i + j * 25 + 25 * 50, t);
+			t2._points[0] = t1._points[0] = Vector2(1 + i - 1.0f, 0 + j - 25.0f);
+			t1._points[1] = Vector2(0 + i - 1.0f, 0 + j - 25.0f);
+			t2._points[2] = t1._points[2] = Vector2(0 + i - 1.0f, 1 + j - 25.0f);
+			t2._points[1] = Vector2(1 + i - 1.0f, 1 + j - 25.0f);
 		}
 	}
 
-	_shapeBatch.AddTriangleArray(&_triangles);
+	_shapeBatch.AddTriangleArray(&_triangleBuffer);
+	_triangleBuffer.SetShapes(_readState->_triangles, WorldState::NUM_TRIANGLES);
 
-	Thread threadA;
-	Thread threadB;
+	_physBossThread._readState = _readState;
+	_physBossThread._writeState = _writeState;
 
-	TestStart a; a.sleepTime = 500;
-	TestStart b; b.sleepTime = 1000;
-
-	threadA.Start(a);
-	threadB.Start(b);
-
-	threadB.Join();
-	threadA.Join();
+	_physBossThread._physicsBegin.Raise();
+	_physBossThread.Start();
 }
 
 void Application::Draw()
@@ -91,34 +66,24 @@ void Application::Draw()
 	_renderer.Clear();
 	_renderer.EnableDepthTest(false);
 
-	_shapeBatch.Draw(_renderer);
+	_shapeBatch.Draw();
 }
 
-void Application::Update(float delta)
+void Application::Update(double delta)
 {
-	for (unsigned int i = 0; i < _quads.GetSize(); i++)
-	{
-		Quad q = _quads.GetShape(i);
+	_physBossThread._physicsDone.Wait();
+	_physBossThread._physicsDone.Reset();
 
-		q._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
+	std::swap(_writeState, _readState);
+	_physBossThread._readState = _readState;
+	_physBossThread._writeState = _writeState;
 
-		_quads.SetShape(i, q);
-	}
+	_physBossThread._delta = delta;
 
-	for (unsigned int i = 0; i < _triangles.GetSize(); i++)
-	{
-		Triangle t = _triangles.GetShape(i);
+	_physBossThread._physicsBegin.Raise();
 
-		t._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
-
-		_triangles.SetShape(i, t);
-	}
-
-
-	_rotation = fmod(delta + _rotation, PI*2);
-	Quad q = _quads.GetShape(0);
-	q._rotation = _rotation;
-	_quads.SetShape(0, q);
+	_quadBuffer.SetShapes(_readState->_quads, WorldState::NUM_QUADS);
+	_triangleBuffer.SetShapes(_readState->_triangles, WorldState::NUM_TRIANGLES);
 }
 
 void Application::Dispose()
@@ -126,7 +91,6 @@ void Application::Dispose()
 	_shapeBatch.Dispose();
 	_renderer.Dispose();
 }
-
 
 void Application::Resize(int width, int height)
 {

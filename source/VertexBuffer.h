@@ -21,7 +21,16 @@ public:
 	explicit VertexBuffer();
 	~VertexBuffer();
 
+	// Create an empty buffer
+	void Create(const Renderer& renderer);
+
+	// Create and initialise
 	void Create(const Renderer& renderer, const void* data, unsigned int size);
+
+	// Set contents and resize
+	void SetData(const void* data, unsigned int size);
+
+	// Update range of data
 	void UpdateRegion(unsigned int offset, const void* newdata, unsigned int size);
 	void Dispose();
 

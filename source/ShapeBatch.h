@@ -1,4 +1,5 @@
 // David Hart - 2012
+// TODO: Document
 
 #pragma once
 
@@ -33,6 +34,7 @@ template<typename T> class ShapeArray
 public:
 	
 	ShapeArray() :
+		_count(0),
 		_needsDisposing(false),
 		_needsUpdate(false)
 	{
@@ -44,46 +46,39 @@ public:
 		assert(!_needsDisposing);
 	}
 
-	inline void SetSize(unsigned int size)
+	inline void SetShapes(T* shapes, unsigned int count)
 	{
-		_shapes.resize(size);
+		int bufferSize = count * sizeof(T);
+
+		// If we will resize the buffer then we will need to re-create the binding
+		if (bufferSize != _instanceBuffer.Size())
+			_needsUpdate = true;
+
+		_instanceBuffer.SetData(shapes, bufferSize);
+		_count = count;
 	}
 
-	inline unsigned int GetSize()
+	inline unsigned int GetCount() const
 	{
-		return _shapes.size();
-	}
-
-	void SetShape(unsigned int index, const T& shape)
-	{
-		assert(index < _shapes.size());
-
-		_shapes[index] = shape;
-		_needsUpdate = true;
-	}
-
-	T GetShape(unsigned int index)
-	{
-		assert(index < _shapes.size());
-
-		return _shapes[index];
+		return _count;
 	}
 
 private:
 
 	void Dispose()
 	{
+		_instanceBuffer.Dispose();
+
 		if (_needsDisposing)
 		{
 			_bufferBinding.Dispose();
-			_instanceBuffer.Dispose();
 			_needsDisposing = false;
 		}
 	}
 
-	std::vector<T> _shapes;
 	VertexBuffer _instanceBuffer;
 	VertexBinding _bufferBinding;
+	unsigned int _count;
 	bool _needsDisposing;
 	bool _needsUpdate;
 
@@ -97,9 +92,11 @@ class ShapeBatch
 
 public:
 
-	void Create(const Renderer& renderer);
+	ShapeBatch();
+
+	void Create(const Renderer* renderer);
 	void Dispose();
-	void Draw(const Renderer& renderer);
+	void Draw();
 
 	void AddQuadArray(QuadArray* quadArray);
 	void RemoveQuadArray(QuadArray* quadArray);
@@ -109,14 +106,14 @@ public:
 
 private:
 
-	template <typename T> static void AddShapeArray(T* shapeArray, std::vector<T*>& shapeArrays);
+	template <typename T> static void AddShapeArray(const Renderer& renderer, T* shapeArray, std::vector<T*>& shapeArrays);
 	template <typename T> static void RemoveShapeArray(T* shapeArray, std::vector<T*>& shapeArrays);
 
-	void DrawQuadArray(const Renderer& renderer, QuadArray* quadArray);
-	void UpdateQuadArray(const Renderer& renderer, QuadArray* quadArray);
+	void DrawQuadArray(QuadArray* quadArray);
+	void UpdateQuadArrayBinding(QuadArray* quadArray);
 
-	void DrawTriangleArray(const Renderer& renderer, TriangleArray* triangleArray);
-	void UpdateTriangleArray(const Renderer& renderer, TriangleArray* triangleArray);
+	void DrawTriangleArray(TriangleArray* triangleArray);
+	void UpdateTriangleArrayBinding(TriangleArray* triangleArray);
 
 	VertexShader _quadVertShader;
 	FragmentShader _quadFragShader;
@@ -133,4 +130,6 @@ private:
 
 	std::vector<QuadArray*> _quadArrays;
 	std::vector<TriangleArray*> _triangleArrays;
+
+	const Renderer* _renderer;
 };

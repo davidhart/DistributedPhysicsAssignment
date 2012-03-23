@@ -8,8 +8,24 @@
 
 #include "Renderer.h"
 #include "ShapeBatch.h"
+#include "PhysicsBossThread.h"
 
 class MyWindow;
+
+struct WorldState
+{
+
+public:
+
+	int i;
+
+	static const int NUM_QUADS = 25*50;
+	static const int NUM_TRIANGLES = 25 * 50 * 2;
+
+	Quad _quads[NUM_QUADS];
+	Triangle _triangles[NUM_TRIANGLES];
+
+};
 
 class Application
 {
@@ -20,7 +36,7 @@ public:
 	void Create(MyWindow& window);
 	void Dispose();
 	void Draw();
-	void Update(float delta);
+	void Update(double delta);
 	void Resize(int width, int height);
 
 private:
@@ -28,7 +44,16 @@ private:
 	Matrix4 _view;
 	Renderer _renderer;
 	ShapeBatch _shapeBatch;
-	QuadArray _quads;
-	TriangleArray _triangles;
+	QuadArray _quadBuffer;
+	TriangleArray _triangleBuffer;
+
+	static const int NUM_STATE_BUFFERS = 2;
+	WorldState _stateBuffers[NUM_STATE_BUFFERS];
+
+	WorldState* _readState;
+	WorldState* _writeState;
+
+	PhysicsBossThread _physBossThread;
+
 	float _rotation;
 };

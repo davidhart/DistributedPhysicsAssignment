@@ -15,6 +15,9 @@ MyWindow::MyWindow() :
 	SetDoubleBuffer(true);
 }
 
+LARGE_INTEGER freq;
+LARGE_INTEGER startTime;
+
 void MyWindow::OnCreate()
 {
 	std::string file;
@@ -45,22 +48,25 @@ void MyWindow::OnCreate()
 		_application.Create(*this);
 		_loaded = true;
 	}
+
+	QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&startTime);
 }
 
 void MyWindow::OnDisplay()
 {
-	static float startTime = (float)App::GetTime();
-	static float prevTime = (float)App::GetTime();
-	float time = (float)App::GetTime();
-	float elapsed = time - startTime;
-	float delta = time - prevTime;
+	LARGE_INTEGER endTime;
+	DWORD oldAff = SetThreadAffinityMask(GetCurrentThread(), 1);
+	QueryPerformanceCounter(&endTime);
+
+	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
 
 	_application.Update(delta);
 	_application.Draw();
 	
 	SwapBuffers();
 
-	prevTime = time;
+	startTime = endTime;
 }
 
 void MyWindow::OnIdle()
