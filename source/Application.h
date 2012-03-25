@@ -8,7 +8,7 @@
 
 #include "Renderer.h"
 #include "ShapeBatch.h"
-#include "PhysicsBossThread.h"
+#include "PhysicsThreads.h"
 
 class MyWindow;
 

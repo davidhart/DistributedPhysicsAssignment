@@ -42,10 +42,10 @@
     <ClCompile Include="Color.cpp">
       <Filter>Util</Filter>
     </ClCompile>
-    <ClCompile Include="PhysicsBossThread.cpp" />
     <ClCompile Include="Threading.cpp">
       <Filter>Util</Filter>
     </ClCompile>
+    <ClCompile Include="PhysicsThreads.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -91,10 +91,10 @@
     <ClInclude Include="Color.h">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="PhysicsBossThread.h" />
     <ClInclude Include="Threading.h">
       <Filter>Util</Filter>
     </ClInclude>
+    <ClInclude Include="PhysicsThreads.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

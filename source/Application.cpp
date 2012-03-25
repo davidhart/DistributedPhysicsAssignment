@@ -54,11 +54,11 @@ void Application::Create(MyWindow& window)
 	_shapeBatch.AddTriangleArray(&_triangleBuffer);
 	_triangleBuffer.SetShapes(_readState->_triangles, WorldState::NUM_TRIANGLES);
 
-	_physBossThread._readState = _readState;
-	_physBossThread._writeState = _writeState;
+	_physBossThread.SetReadState(_readState);
+	_physBossThread.SetWriteState(_writeState);
 
-	_physBossThread._physicsBegin.Raise();
-	_physBossThread.Start();
+	_physBossThread.BeginThreads();
+	_physBossThread.BeginStep();
 }
 
 void Application::Draw()
@@ -71,17 +71,14 @@ void Application::Draw()
 
 void Application::Update(double delta)
 {
-	_physBossThread._physicsDone.Wait();
-	_physBossThread._physicsDone.Reset();
+	_physBossThread.WaitForStepCompletion();
 
 	std::swap(_writeState, _readState);
-	_physBossThread._readState = _readState;
-	_physBossThread._writeState = _writeState;
+	_physBossThread.SetReadState(_readState);
+	_physBossThread.SetWriteState(_writeState);
 
-	_physBossThread._delta = delta;
-
-	_physBossThread._physicsBegin.Raise();
-
+	_physBossThread.SetStepDelta(delta);
+	_physBossThread.BeginStep();
 	_quadBuffer.SetShapes(_readState->_quads, WorldState::NUM_QUADS);
 	_triangleBuffer.SetShapes(_readState->_triangles, WorldState::NUM_TRIANGLES);
 }

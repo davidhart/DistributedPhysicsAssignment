@@ -85,7 +85,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix4.cpp" />
     <ClCompile Include="MyWindow.cpp" />
-    <ClCompile Include="PhysicsBossThread.cpp" />
+    <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderProgram.cpp" />
@@ -106,7 +106,7 @@
     <ClInclude Include="Maths.h" />
     <ClInclude Include="Matrix4.h" />
     <ClInclude Include="MyWindow.h" />
-    <ClInclude Include="PhysicsBossThread.h" />
+    <ClInclude Include="PhysicsThreads.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderProgram.h" />

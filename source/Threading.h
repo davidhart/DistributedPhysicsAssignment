@@ -17,12 +17,11 @@ namespace Threading
 
 		void Start();
 
-		virtual unsigned ThreadMain() = 0;
-
 		void Join();
 
 	private:
-
+		
+		virtual unsigned ThreadMain() = 0;
 		static unsigned __stdcall ThreadStartBootstrap(void* data);
 		HANDLE _threadHandle;
 
