@@ -18,6 +18,7 @@ namespace Threading
 		void Start();
 
 		void Join();
+		bool IsRunning();
 
 	private:
 		
@@ -42,6 +43,22 @@ namespace Threading
 
 		HANDLE _handle;
 
+	};
+
+	class Mutex
+	{
+
+	public:
+
+		Mutex();
+		~Mutex();
+
+		void Enter();
+		void Exit();
+
+	private:
+
+		HANDLE _handle;
 	};
 
 }

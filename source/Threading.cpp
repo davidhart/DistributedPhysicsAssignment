@@ -30,7 +30,16 @@ unsigned __stdcall Thread::ThreadStartBootstrap(void* data)
 {
 	Thread* thread = (Thread*)data;
 
-	return thread->ThreadMain();
+	unsigned ret = thread->ThreadMain();
+
+	thread->_threadHandle = 0;
+
+	return ret;
+}
+
+bool Thread::IsRunning()
+{
+	return _threadHandle != 0;
 }
 
 Event::Event()
@@ -59,4 +68,24 @@ void Event::Raise()
 void Event::Reset()
 {
 	ResetEvent(_handle);
+}
+
+Mutex::Mutex()
+{
+	_handle = CreateMutex(NULL, FALSE, NULL);
+}
+
+Mutex::~Mutex()
+{
+	CloseHandle(_handle);
+}
+
+void Mutex::Enter()
+{
+	WaitForSingleObject(_handle, INFINITE);
+}
+
+void Mutex::Exit()
+{
+	ReleaseMutex(_handle);
 }

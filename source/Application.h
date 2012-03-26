@@ -47,13 +47,14 @@ private:
 	QuadArray _quadBuffer;
 	TriangleArray _triangleBuffer;
 
-	static const int NUM_STATE_BUFFERS = 2;
+	// 3 Copies of the world state for triple buffering
+	static const int NUM_STATE_BUFFERS = 3;
 	WorldState _stateBuffers[NUM_STATE_BUFFERS];
 
-	WorldState* _readState;
-	WorldState* _writeState;
+	double _elapsed;
+	unsigned _framesPerSecond;
+
+	WorldState* _drawState;
 
 	PhysicsBossThread _physBossThread;
-
-	float _rotation;
 };

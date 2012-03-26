@@ -1,12 +1,10 @@
 #include "PhysicsThreads.h"
 #include "Application.h"
 
-#include <iostream>
-
-
 PhysicsWorkerThread::PhysicsWorkerThread() :
 	_readState(NULL),
 	_writeState(NULL),
+	_haltPhysics(false),
 	_delta(0),
 	_threadId(0)
 {
@@ -22,20 +20,26 @@ void PhysicsWorkerThread::SetWriteState(WorldState* worldState)
 	_writeState = worldState;
 }
 
-void PhysicsWorkerThread::SetStepDelta(double delta)
+void PhysicsWorkerThread::BeginStep(double delta)
 {
 	_delta = delta;
-}
-
-void PhysicsWorkerThread::BeginStep()
-{
 	_physicsDone.Reset();
 	_physicsBegin.Raise();
 }
 
 void PhysicsWorkerThread::WaitForStepCompletion()
 {
-	_physicsDone.Wait();
+	// If we are shutting down there is a chance a worker thread already exited, 
+	// in which case we should not wait for it
+	if (!_haltPhysics && IsRunning())
+		_physicsDone.Wait();
+}
+
+void PhysicsWorkerThread::StopPhysics()
+{
+	_haltPhysics = true;
+
+	Join();
 }
 
 void PhysicsWorkerThread::SetThreadId(unsigned id)
@@ -48,46 +52,48 @@ void PhysicsWorkerThread::SetNumThreads(unsigned numThreads)
 	_numThreads = numThreads;
 }
 
+void PhysicsWorkerThread::PhysicsStep()
+{
+	_physicsBegin.Wait();
+	_physicsBegin.Reset();
+
+	WorldState* readState = _readState;
+	WorldState* writeState = _writeState;
+	double delta = _delta;
+
+	unsigned minIndex = GetStartIndex(WorldState::NUM_QUADS);
+	unsigned maxIndex = GetEndIndex(WorldState::NUM_QUADS);
+
+	for (unsigned int i = 0; i <= maxIndex; i++)
+	{
+		writeState->_quads[i]._position = readState->_quads[i]._position;
+		writeState->_quads[i]._rotation = readState->_quads[i]._rotation + 1 * (float)delta * 0.5f;
+		writeState->_quads[i]._color = readState->_quads[i]._color;
+		writeState->_quads[i]._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
+	}
+
+	minIndex = GetStartIndex(WorldState::NUM_TRIANGLES);
+	maxIndex = GetEndIndex(WorldState::NUM_TRIANGLES);
+
+	for (unsigned int i = minIndex; i <= maxIndex; i++)
+	{
+		writeState->_triangles[i]._points[0] = readState->_triangles[i]._points[0];
+		writeState->_triangles[i]._points[1] = readState->_triangles[i]._points[1];
+		writeState->_triangles[i]._points[2] = readState->_triangles[i]._points[2];
+		writeState->_triangles[i]._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
+	}
+
+	_physicsDone.Raise();
+}
+
 unsigned PhysicsWorkerThread::ThreadMain()
 {
-	_readState->i = 0;
-
-	do
+	while(!_haltPhysics)
 	{
-		_physicsBegin.Wait();
-		_physicsBegin.Reset();
+		PhysicsStep();
+	}
 
-		WorldState* readState = _readState;
-		WorldState* writeState = _writeState;
-		double delta = _delta;
-
-		unsigned minIndex = GetStartIndex(WorldState::NUM_QUADS);
-		unsigned maxIndex = GetEndIndex(WorldState::NUM_QUADS);
-
-		for (unsigned int i = 0; i <= maxIndex; i++)
-		{
-			writeState->_quads[i]._position = readState->_quads[i]._position;
-			float temp = pow(pow(pow(rand() / (float)RAND_MAX, 3), 3), 3);
-			writeState->_quads[i]._rotation = readState->_quads[i]._rotation + 1 * (float)delta * 3 * temp;
-			writeState->_quads[i]._color = readState->_quads[i]._color;
-			writeState->_quads[i]._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
-		}
-
-		minIndex = GetStartIndex(WorldState::NUM_TRIANGLES);
-		maxIndex = GetEndIndex(WorldState::NUM_TRIANGLES);
-
-		for (unsigned int i = minIndex; i <= maxIndex; i++)
-		{
-			writeState->_triangles[i]._points[0] = readState->_triangles[i]._points[0];
-			writeState->_triangles[i]._points[1] = readState->_triangles[i]._points[1];
-			writeState->_triangles[i]._points[2] = readState->_triangles[i]._points[2];
-			writeState->_triangles[i]._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
-		}
-
-		_writeState->i = _readState->i + 1;
-
-		_physicsDone.Raise();
-	} while(true);
+	return 0;
 }
 
 unsigned PhysicsWorkerThread::GetStartIndex(unsigned count)
@@ -107,7 +113,9 @@ unsigned PhysicsWorkerThread::GetEndIndex(unsigned count)
 	return countPerThread * _threadId + (countPerThread - 1);
 }
 
-PhysicsBossThread::PhysicsBossThread()
+PhysicsBossThread::PhysicsBossThread() :
+	_freeState(NULL),
+	_tickCount(0)
 {
 	SetThreadId(0);
 
@@ -122,13 +130,6 @@ PhysicsBossThread::PhysicsBossThread()
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->SetNumThreads(_workers.size()+1);
-	}
-
-	std::cout << GetStartIndex(WorldState::NUM_QUADS) << " - " << GetEndIndex(WorldState::NUM_QUADS) << std::endl;
-
-	for (unsigned i = 0; i < _workers.size(); ++i)
-	{
-		std::cout << _workers[i]->GetStartIndex(WorldState::NUM_QUADS) << " - " << _workers[i]->GetEndIndex(WorldState::NUM_QUADS) << std::endl;
 	}
 }
 
@@ -158,19 +159,14 @@ void PhysicsBossThread::SetWriteState(WorldState* worldState)
 	}
 }
 
-void PhysicsBossThread::SetStepDelta(double delta)
-{
-	PhysicsWorkerThread::SetStepDelta(delta);
-
-	for (unsigned i = 0; i < _workers.size(); ++i)
-	{
-		_workers[i]->SetStepDelta(delta);
-	}
-}
-
 void PhysicsBossThread::BeginThreads()
 {
+	QueryPerformanceFrequency(&freq);
+	QueryPerformanceCounter(&startTime);
+
 	Start();
+
+	_readState->i = 0;
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
@@ -178,22 +174,101 @@ void PhysicsBossThread::BeginThreads()
 	}
 }
 
-void PhysicsBossThread::BeginStep()
+void PhysicsBossThread::BeginStep(double delta)
 {
-	PhysicsWorkerThread::BeginStep();
+	PhysicsWorkerThread::BeginStep(delta);
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
-		_workers[i]->BeginStep();
+		_workers[i]->BeginStep(delta);
 	}
 }
 
+WorldState* PhysicsBossThread::SwapDrawState(WorldState* oldDrawState)
+{
+	_stateSwapMutex.Enter();
+
+	if (oldDrawState != _readState)
+	{
+		_freeState = oldDrawState;
+	}
+
+	WorldState* readState = _readState;
+
+	_stateSwapMutex.Exit();
+
+	return readState;
+}
+
+void PhysicsBossThread::StopPhysics()
+{
+	// Stop worker threads first because the BossThread will
+	// not get stuck waiting to begin, whereas workers can
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->StopPhysics();
+	}
+
+	PhysicsWorkerThread::StopPhysics();
+}
+
+
 void PhysicsBossThread::WaitForStepCompletion()
 {
-	PhysicsWorkerThread::WaitForStepCompletion();
-
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->WaitForStepCompletion();
 	}
+	
+	PhysicsWorkerThread::WaitForStepCompletion();
+}
+
+void PhysicsBossThread::PhysicsStep()
+{
+	// TODO: timer class
+	LARGE_INTEGER endTime;
+	DWORD oldAff = SetThreadAffinityMask(GetCurrentThread(), 1);
+	QueryPerformanceCounter(&endTime);
+	
+	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
+	
+	// Wake up the workers
+	BeginStep(delta);
+
+	// Complete the current step on all threads including this one
+	PhysicsWorkerThread::PhysicsStep();
+
+	// Synchronise with workers
+	WaitForStepCompletion();
+	
+	// ---- Critical Section Begin
+	_stateSwapMutex.Enter();
+
+	// The state we just wrote is now the readable state
+	SetReadState(_writeState);
+
+	// Write to the invalid state, which is either the one just wrote
+	// or one that the renderer recently finished with
+	SetWriteState(_freeState);
+
+	// The previous readState will be invalid after the next step and  
+	// will be written to at the next oppertunity
+	_freeState = _readState;
+
+	_stateSwapMutex.Exit();
+	// ---- Critical Section End
+
+	_tickCount++; // Record the step for performance measurement
+
+	startTime = endTime;
+}
+
+void PhysicsBossThread::ResetTicksCounter()
+{
+	_tickCount = 0;
+}
+
+unsigned PhysicsBossThread::TicksPerSec()
+{
+	return _tickCount;
 }

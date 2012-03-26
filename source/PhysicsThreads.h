@@ -17,17 +17,24 @@ public:
 
 	virtual void SetReadState(WorldState* worldState);
 	virtual void SetWriteState(WorldState* worldState);
-	virtual void SetStepDelta(double delta);
-
-	virtual void BeginStep();
-	virtual void WaitForStepCompletion();
 
 	void SetThreadId(unsigned id);
 	void SetNumThreads(unsigned numThreads);
 
-
 	unsigned GetStartIndex(unsigned count);
 	unsigned GetEndIndex(unsigned count);
+
+	virtual void BeginStep(double delta);
+	virtual void WaitForStepCompletion();
+
+	virtual void StopPhysics();
+
+protected:
+
+	virtual void PhysicsStep();
+
+	WorldState* volatile _readState; // currently reading from
+	WorldState* volatile _writeState; // currently writing to
 
 private:
 
@@ -35,9 +42,9 @@ private:
 
 	unsigned _threadId;
 	unsigned _numThreads;
-	WorldState* volatile _readState;
-	WorldState* volatile _writeState;
+
 	volatile double _delta;
+	volatile bool _haltPhysics;
 
 	Threading::Event _physicsBegin;
 	Threading::Event _physicsDone;
@@ -57,11 +64,30 @@ public:
 	void SetStepDelta(double delta);
 
 	void BeginThreads();
-	void BeginStep();
-	void WaitForStepCompletion();
+
+	WorldState* SwapDrawState(WorldState* oldDrawState);
+
+	unsigned TicksPerSec();
+	void ResetTicksCounter();	
+
+	void StopPhysics();
 
 private:
 
+	void BeginStep(double delta);
+	
+	void WaitForStepCompletion();
+	void PhysicsStep();
+
 	std::vector<PhysicsWorkerThread*> _workers;
 
+	Threading::Mutex _stateSwapMutex;
+
+	WorldState* volatile _freeState; // next buffer to write to
+
+	unsigned _tickCount;
+
+	// TODO: move these into timer class
+	LARGE_INTEGER freq;
+	LARGE_INTEGER startTime;
 };
