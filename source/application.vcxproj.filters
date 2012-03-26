@@ -11,12 +11,6 @@
     <ClCompile Include="Util.cpp">
       <Filter>Util</Filter>
     </ClCompile>
-    <ClCompile Include="Vector3.cpp">
-      <Filter>Util</Filter>
-    </ClCompile>
-    <ClCompile Include="Vector4.cpp">
-      <Filter>Util</Filter>
-    </ClCompile>
     <ClCompile Include="Shader.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
@@ -36,9 +30,6 @@
       <Filter>Graphics</Filter>
     </ClCompile>
     <ClCompile Include="ShapeBatch.cpp" />
-    <ClCompile Include="Vector2.cpp">
-      <Filter>Util</Filter>
-    </ClCompile>
     <ClCompile Include="Color.cpp">
       <Filter>Util</Filter>
     </ClCompile>
@@ -46,6 +37,7 @@
       <Filter>Util</Filter>
     </ClCompile>
     <ClCompile Include="PhysicsThreads.cpp" />
+    <ClCompile Include="PhysicsObjects.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -58,12 +50,6 @@
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="Util.h">
-      <Filter>Util</Filter>
-    </ClInclude>
-    <ClInclude Include="Vector4.h">
-      <Filter>Util</Filter>
-    </ClInclude>
-    <ClInclude Include="Vector3.h">
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="VertexBuffer.h">
@@ -85,9 +71,6 @@
       <Filter>Graphics</Filter>
     </ClInclude>
     <ClInclude Include="ShapeBatch.h" />
-    <ClInclude Include="Vector2.h">
-      <Filter>Util</Filter>
-    </ClInclude>
     <ClInclude Include="Color.h">
       <Filter>Util</Filter>
     </ClInclude>
@@ -95,6 +78,19 @@
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="PhysicsThreads.h" />
+    <ClInclude Include="PhysicsObjects.h" />
+    <ClInclude Include="Vector.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector2.inl">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector3.inl">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector4.inl">
+      <Filter>Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

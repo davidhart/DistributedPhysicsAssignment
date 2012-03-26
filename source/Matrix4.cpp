@@ -7,7 +7,7 @@ Matrix4::Matrix4()
 
 }
 
-Matrix4::Matrix4(const Vector4& c0, const Vector4& c1, const Vector4& c2, const Vector4& c3)
+Matrix4::Matrix4(const Vector4f& c0, const Vector4f& c1, const Vector4f& c2, const Vector4f& c3)
 {
 	_m[0] = c0;
 	_m[1] = c1;

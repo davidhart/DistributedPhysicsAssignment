@@ -111,7 +111,7 @@ void ShaderProgram::SetUniform(const Uniform& uniform, const Matrix4& value) con
 	}
 }
 
-void ShaderProgram::SetUniform(const Uniform& uniform, const Vector4& value) const
+void ShaderProgram::SetUniform(const Uniform& uniform, const Vector4f& value) const
 {
 	if (uniform._location >= 0)
 	{
@@ -119,7 +119,7 @@ void ShaderProgram::SetUniform(const Uniform& uniform, const Vector4& value) con
 	}
 }
 
-void ShaderProgram::SetUniform(const Uniform& uniform, const Vector3& value) const
+void ShaderProgram::SetUniform(const Uniform& uniform, const Vector3f& value) const
 {
 	if (uniform._location >= 0)
 	{

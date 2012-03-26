@@ -14,8 +14,9 @@
 #include "Shader.h"
 
 class Matrix4;
-class Vector4;
-class Vector3;
+
+#include "Vector.h"
+
 class ShaderProgram;
 
 class Uniform
@@ -52,8 +53,8 @@ public:
 
 	void SetUniform(const Uniform& uniform, int value) const;
 	void SetUniform(const Uniform& uniform, float value) const;
-	void SetUniform(const Uniform& uniform, const Vector3& value) const;
-	void SetUniform(const Uniform& uniform, const Vector4& value) const;
+	void SetUniform(const Uniform& uniform, const Vector3f& value) const;
+	void SetUniform(const Uniform& uniform, const Vector4f& value) const;
 	void SetUniform(const Uniform& uniform, const Matrix4& value) const;
 
 	void Use();

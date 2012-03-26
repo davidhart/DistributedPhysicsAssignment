@@ -1,4 +1,4 @@
-// David Hart 2012
+// David Hart - 2012
 
 #include "ShapeBatch.h"
 #include "Util.h"

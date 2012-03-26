@@ -1,7 +1,6 @@
 #pragma once
 
-class Vector3;
-class Vector4;
+#include "Vector.h"
 
 class Color
 {
@@ -12,8 +11,8 @@ public:
 	Color(float r, float g, float b, float a = 1.0f);
 	Color();
 
-	Vector3 ToVector3();
-	Vector4 ToVector4();
+	Vector3f ToVector3f();
+	Vector4f ToVector4f();
 
 	void SetRed(unsigned char red);
 	void SetGreen(unsigned char green);

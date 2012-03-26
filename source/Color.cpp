@@ -1,8 +1,5 @@
 #include "Color.h"
 
-#include "Vector3.h"
-#include "Vector4.h"
-
 Color::Color(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha)
 {
 	_color = red | (green << 8) | (blue << 16) | (alpha << 24);
@@ -21,16 +18,16 @@ Color::Color() :
 {
 }
 
-Vector3 Color::ToVector3()
+Vector3f Color::ToVector3f()
 {
-	return Vector3(Util::ByteToFloatColorComponent(GetRed()),
+	return Vector3f(Util::ByteToFloatColorComponent(GetRed()),
 		Util::ByteToFloatColorComponent(GetGreen()),
 		Util::ByteToFloatColorComponent(GetBlue()));
 }
 
-Vector4 Color::ToVector4()
+Vector4f Color::ToVector4f()
 {
-	return Vector4(Util::ByteToFloatColorComponent(GetRed()),
+	return Vector4f(Util::ByteToFloatColorComponent(GetRed()),
 		Util::ByteToFloatColorComponent(GetGreen()),
 		Util::ByteToFloatColorComponent(GetBlue()),
 		Util::ByteToFloatColorComponent(GetAlpha()));

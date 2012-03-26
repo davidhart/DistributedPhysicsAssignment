@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 
 #include "Application.h"
 #include "MyWindow.h"
@@ -6,9 +6,14 @@
 
 Application::Application() :
 	_drawState(NULL),
-	_framesPerSecond(0)
+	_framesPerSecond(0),
+	_viewZoom(8)
 {
 
+	for (int i = 0; i < NUM_CAMERA_ACTIONS; ++i)
+	{
+		_cameraState[i] = false;
+	}
 }
 
 void Application::Create(MyWindow& window)
@@ -27,7 +32,7 @@ void Application::Create(MyWindow& window)
 		{
 			Quad& q = _drawState->_quads[i + j * 25];
 
-			q._position = Vector2(i-25.0f, j-25.0f);
+			q._position = Vector2f(i-25.0f, j-25.0f);
 			q._rotation = 0;
 			q._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
 		}
@@ -46,10 +51,10 @@ void Application::Create(MyWindow& window)
 			Triangle& t1 = _drawState->_triangles[i + j * 25];
 			Triangle& t2 = _drawState->_triangles[i + j * 25 + 25 * 50];
 
-			t2._points[0] = t1._points[0] = Vector2(1 + i - 1.0f, 0 + j - 25.0f);
-			t1._points[1] = Vector2(0 + i - 1.0f, 0 + j - 25.0f);
-			t2._points[2] = t1._points[2] = Vector2(0 + i - 1.0f, 1 + j - 25.0f);
-			t2._points[1] = Vector2(1 + i - 1.0f, 1 + j - 25.0f);
+			t2._points[0] = t1._points[0] = Vector2f(1 + i - 1.0f, 0 + j - 25.0f);
+			t1._points[1] = Vector2f(0 + i - 1.0f, 0 + j - 25.0f);
+			t2._points[2] = t1._points[2] = Vector2f(0 + i - 1.0f, 1 + j - 25.0f);
+			t2._points[1] = Vector2f(1 + i - 1.0f, 1 + j - 25.0f);
 		}
 	}
 
@@ -73,6 +78,8 @@ void Application::Draw()
 
 void Application::Update(double delta)
 {
+	UpdateCamera(delta);
+
 	_drawState = _physBossThread.SwapDrawState(_drawState);
 
 	_quadBuffer.SetShapes(_drawState->_quads, WorldState::NUM_QUADS);
@@ -91,6 +98,41 @@ void Application::Update(double delta)
 	}
 }
 
+void Application::UpdateCamera(double delta)
+{
+	Vector2f panDirection(0);
+	bool cameraUpdate = false;
+	if (_cameraState[CAMERA_PAN_LEFT])
+	{
+		panDirection.x(panDirection.x() - 1);
+	}
+	if (_cameraState[CAMERA_PAN_RIGHT])
+	{
+		panDirection.x(panDirection.x() + 1);
+	}
+
+	if (_cameraState[CAMERA_PAN_DOWN])
+	{
+		panDirection.y(panDirection.y() - 1);
+	}
+	if (_cameraState[CAMERA_PAN_UP])
+	{
+		panDirection.y(panDirection.y() + 1);
+	}
+
+	if (_cameraState[CAMERA_ZOOM_IN])
+	{
+		_viewZoom -= 3.0f * (float)delta;
+	}
+	if (_cameraState[CAMERA_ZOOM_OUT])
+	{
+		_viewZoom += 3.0f * (float)delta;
+	}
+
+	_viewTranslation += panDirection.normalize() * (float)delta * _viewZoom;
+	UpdateViewMatrix();
+}
+
 void Application::Dispose()
 {
 	_shapeBatch.Dispose();
@@ -101,9 +143,23 @@ void Application::Dispose()
 
 void Application::Resize(int width, int height)
 {
-	float aspect = width / (float)height;
-	float scale = 8;
-	Matrix4::Ortho2D(_view, -aspect*scale, aspect*scale, scale, -scale);
+	_aspect = width / (float)height;
+
+	UpdateViewMatrix();
+}
+
+void Application::UpdateViewMatrix()
+{
+	Matrix4::Ortho2D(_view, 
+					-_aspect*_viewZoom + _viewTranslation.x(), 
+					_aspect*_viewZoom + _viewTranslation.x(), 
+					_viewZoom + _viewTranslation.y(),
+					-_viewZoom + _viewTranslation.y());
+
 	_renderer.ViewMatrix(_view);
-	// TODO: update view
+}
+
+void Application::CameraKeyEvent(eCameraAction action, bool state)
+{
+	_cameraState[(int)action] = state;
 }

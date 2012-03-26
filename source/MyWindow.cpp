@@ -90,7 +90,31 @@ void MyWindow::OnKeyboard(int key, bool down)
 		SetFullscreen(full);
 	}
 
-	if (VK_ESCAPE == key && down)
+	else if (key == VK_UP)
+	{
+		_application.CameraKeyEvent(CAMERA_PAN_UP, down);
+	}
+	else if (key == VK_DOWN)
+	{
+		_application.CameraKeyEvent(CAMERA_PAN_DOWN, down);
+	}
+	else if (key == VK_RIGHT)
+	{
+		_application.CameraKeyEvent(CAMERA_PAN_RIGHT, down);
+	}
+	else if (key == VK_LEFT)
+	{
+		_application.CameraKeyEvent(CAMERA_PAN_LEFT, down);
+	}
+	else if (key == VK_ADD)
+	{
+		_application.CameraKeyEvent(CAMERA_ZOOM_IN, down);
+	}
+	else if (key == VK_SUBTRACT)
+	{
+		_application.CameraKeyEvent(CAMERA_ZOOM_OUT, down);
+	}
+	else if (VK_ESCAPE == key && down)
 		Close();
 }
 

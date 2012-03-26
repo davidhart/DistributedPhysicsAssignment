@@ -85,6 +85,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix4.cpp" />
     <ClCompile Include="MyWindow.cpp" />
+    <ClCompile Include="PhysicsObjects.cpp" />
     <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Shader.cpp" />
@@ -93,9 +94,6 @@
     <ClCompile Include="Threading.cpp" />
     <ClCompile Include="Uncopyable.cpp" />
     <ClCompile Include="Util.cpp" />
-    <ClCompile Include="Vector2.cpp" />
-    <ClCompile Include="Vector3.cpp" />
-    <ClCompile Include="Vector4.cpp" />
     <ClCompile Include="VertexBinding.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
   </ItemGroup>
@@ -106,6 +104,7 @@
     <ClInclude Include="Maths.h" />
     <ClInclude Include="Matrix4.h" />
     <ClInclude Include="MyWindow.h" />
+    <ClInclude Include="PhysicsObjects.h" />
     <ClInclude Include="PhysicsThreads.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Shader.h" />
@@ -114,9 +113,10 @@
     <ClInclude Include="Threading.h" />
     <ClInclude Include="Uncopyable.h" />
     <ClInclude Include="Util.h" />
-    <ClInclude Include="Vector2.h" />
-    <ClInclude Include="Vector3.h" />
-    <ClInclude Include="Vector4.h" />
+    <ClInclude Include="Vector.h" />
+    <ClInclude Include="Vector2.inl" />
+    <ClInclude Include="Vector3.inl" />
+    <ClInclude Include="Vector4.inl" />
     <ClInclude Include="VertexBinding.h" />
     <ClInclude Include="VertexBuffer.h" />
   </ItemGroup>

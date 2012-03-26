@@ -8,22 +8,21 @@
 #include "VertexBuffer.h"
 #include "Renderer.h"
 #include "Shader.h"
-#include "Vector2.h"
-#include "Vector4.h"
+#include "Vector.h"
 #include "Color.h"
 #include <vector>
 #include <cassert>
 
 struct Quad
 {
-	Vector2 _position;
+	Vector2f _position;
 	float _rotation;
 	Color _color;
 };
 
 struct Triangle
 {
-	Vector2 _points[3];
+	Vector2f _points[3];
 	Color _color;
 };
 
