@@ -35,7 +35,7 @@ public:
 
 private:
 
-	float _v[2];
+	T _v[2];
 
 };
 

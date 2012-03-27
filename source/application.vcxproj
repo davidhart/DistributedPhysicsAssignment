@@ -96,6 +96,7 @@
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="VertexBinding.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
+    <ClCompile Include="WorldState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -119,6 +120,7 @@
     <ClInclude Include="Vector4.inl" />
     <ClInclude Include="VertexBinding.h" />
     <ClInclude Include="VertexBuffer.h" />
+    <ClInclude Include="WorldState.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\build\data\quadBatch.frag" />

@@ -38,6 +38,7 @@
     </ClCompile>
     <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="PhysicsObjects.cpp" />
+    <ClCompile Include="WorldState.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -91,6 +92,7 @@
     <ClInclude Include="Vector4.inl">
       <Filter>Util</Filter>
     </ClInclude>
+    <ClInclude Include="WorldState.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

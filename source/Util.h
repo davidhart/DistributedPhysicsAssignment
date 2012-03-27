@@ -16,6 +16,7 @@ namespace Util
 
 	void ReadTextFileToString(const std::string& filename, std::string& text);
 
+	bool FloatEquality(double a, double b, double precision = (double)EPSILON);
 	bool FloatEquality(float a, float b, float precision = EPSILON);
 
 	bool ReadToken(std::istream& stream, const char* token);
@@ -54,5 +55,10 @@ namespace Util
 	inline unsigned char FloatToByteColorComponent(float channel)
 	{
 		return (unsigned char)(channel * 255.0f);
+	}
+
+	inline double RandRange(double min, double max)
+	{
+		return rand()/(double)RAND_MAX * (max - min) + min;
 	}
 };

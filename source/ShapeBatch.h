@@ -45,7 +45,7 @@ public:
 		assert(!_needsDisposing);
 	}
 
-	inline void SetShapes(T* shapes, unsigned int count)
+	inline void SetShapes(const T* shapes, unsigned int count)
 	{
 		int bufferSize = count * sizeof(T);
 

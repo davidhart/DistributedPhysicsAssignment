@@ -5,11 +5,9 @@
 #include <iostream>
 
 Application::Application() :
-	_drawState(NULL),
 	_framesPerSecond(0),
-	_viewZoom(8)
+	_viewZoom(32)
 {
-
 	for (int i = 0; i < NUM_CAMERA_ACTIONS; ++i)
 	{
 		_cameraState[i] = false;
@@ -18,52 +16,21 @@ Application::Application() :
 
 void Application::Create(MyWindow& window)
 {
-	_physBossThread.SetReadState(_stateBuffers + 0);
-	_physBossThread.SetWriteState(_stateBuffers + 1);
-	_drawState = _stateBuffers + 0;
-
 	_renderer.Create(&window);
-
 	_shapeBatch.Create(&_renderer);
 
-	for (int i = 0; i < 25; i++)
-	{
-		for (int j = 0; j < 50; j++)
-		{
-			Quad& q = _drawState->_quads[i + j * 25];
-
-			q._position = Vector2f(i-25.0f, j-25.0f);
-			q._rotation = 0;
-			q._color = Color(rand()/(float)RAND_MAX, rand()/(float)RAND_MAX, rand()/(float)RAND_MAX);
-		}
-	}
-
 	_shapeBatch.AddQuadArray(&_quadBuffer);
-	_quadBuffer.SetShapes(_drawState->_quads, WorldState::NUM_QUADS);
+	_shapeBatch.AddTriangleArray(&_triangleBuffer);
 
-	Triangle t;
-	t._color = Color(1.0f, 0.0f, 0.0f);
-	
-	for (int i = 0; i < 25; i++)
+	for (int i = 0; i < 100000; i++)
 	{
-		for (int j = 0; j < 50; j++)
-		{
-			Triangle& t1 = _drawState->_triangles[i + j * 25];
-			Triangle& t2 = _drawState->_triangles[i + j * 25 + 25 * 50];
-
-			t2._points[0] = t1._points[0] = Vector2f(1 + i - 1.0f, 0 + j - 25.0f);
-			t1._points[1] = Vector2f(0 + i - 1.0f, 0 + j - 25.0f);
-			t2._points[2] = t1._points[2] = Vector2f(0 + i - 1.0f, 1 + j - 25.0f);
-			t2._points[1] = Vector2f(1 + i - 1.0f, 1 + j - 25.0f);
-		}
+		Physics::BoxObject* b= _worldState.AddBox();
+		b->SetPosition(Vector2d(0, 3));
+		b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 	}
 
-	_shapeBatch.AddTriangleArray(&_triangleBuffer);
-	_triangleBuffer.SetShapes(_drawState->_triangles, WorldState::NUM_TRIANGLES);
-
-	_drawState = _physBossThread.SwapDrawState(_stateBuffers + 2);
+	_physBossThread.SetWorldState(&_worldState);
 	_physBossThread.BeginThreads();
-	//_physBossThread.BeginStep();
 }
 
 void Application::Draw()
@@ -80,10 +47,10 @@ void Application::Update(double delta)
 {
 	UpdateCamera(delta);
 
-	_drawState = _physBossThread.SwapDrawState(_drawState);
+	_worldState.SwapDrawState();
 
-	_quadBuffer.SetShapes(_drawState->_quads, WorldState::NUM_QUADS);
-	_triangleBuffer.SetShapes(_drawState->_triangles, WorldState::NUM_TRIANGLES);
+	_quadBuffer.SetShapes(_worldState.GetQuadDrawBuffer(), _worldState.GetNumQuads());
+	_triangleBuffer.SetShapes(_worldState.GetTriangleDrawBuffer(), _worldState.GetNumTriangles());
 
 	_elapsed += delta;
 
@@ -100,7 +67,7 @@ void Application::Update(double delta)
 
 void Application::UpdateCamera(double delta)
 {
-	Vector2f panDirection(0);
+	Vector2f panDirection(0.0f);
 	bool cameraUpdate = false;
 	if (_cameraState[CAMERA_PAN_LEFT])
 	{

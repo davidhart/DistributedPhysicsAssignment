@@ -9,23 +9,9 @@
 #include "Renderer.h"
 #include "ShapeBatch.h"
 #include "PhysicsThreads.h"
+#include "WorldState.h"
 
 class MyWindow;
-
-struct WorldState
-{
-
-public:
-
-	int i;
-
-	static const int NUM_QUADS = 25*50;
-	static const int NUM_TRIANGLES = 25 * 50 * 2;
-
-	Quad _quads[NUM_QUADS];
-	Triangle _triangles[NUM_TRIANGLES];
-
-};
 
 enum eCameraAction
 {
@@ -61,15 +47,12 @@ private:
 	QuadArray _quadBuffer;
 	TriangleArray _triangleBuffer;
 
-	// 3 Copies of the world state for triple buffering
-	static const int NUM_STATE_BUFFERS = 3;
-	WorldState _stateBuffers[NUM_STATE_BUFFERS];
-	WorldState* _drawState;
-
 	double _elapsed;
 	unsigned _framesPerSecond;
 
 	PhysicsBossThread _physBossThread;
+
+	WorldState _worldState;
 
 	Vector2f _viewTranslation;
 	float _viewZoom;

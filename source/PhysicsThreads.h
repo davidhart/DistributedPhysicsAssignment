@@ -6,7 +6,7 @@
 #include "Threading.h"
 #include <vector>
 
-struct WorldState;
+class WorldState;
 
 class PhysicsWorkerThread : public Threading::Thread
 {
@@ -15,14 +15,12 @@ public:
 
 	PhysicsWorkerThread();
 
-	virtual void SetReadState(WorldState* worldState);
-	virtual void SetWriteState(WorldState* worldState);
-
+	virtual void SetWorldState(WorldState* worldState);
 	void SetThreadId(unsigned id);
 	void SetNumThreads(unsigned numThreads);
 
-	unsigned GetStartIndex(unsigned count);
-	unsigned GetEndIndex(unsigned count);
+	int GetStartIndex(unsigned count);
+	int GetEndIndex(unsigned count);
 
 	virtual void BeginStep(double delta);
 	virtual void WaitForStepCompletion();
@@ -32,9 +30,7 @@ public:
 protected:
 
 	virtual void PhysicsStep();
-
-	WorldState* volatile _readState; // currently reading from
-	WorldState* volatile _writeState; // currently writing to
+	WorldState* _worldState;
 
 private:
 
@@ -48,7 +44,6 @@ private:
 
 	Threading::Event _physicsBegin;
 	Threading::Event _physicsDone;
-
 };
 
 class PhysicsBossThread : public PhysicsWorkerThread
@@ -59,13 +54,10 @@ public:
 	PhysicsBossThread();
 	~PhysicsBossThread();
 
-	void SetReadState(WorldState* worldState);
-	void SetWriteState(WorldState* worldState);
+	void SetWorldState(WorldState* worldState);
 	void SetStepDelta(double delta);
 
 	void BeginThreads();
-
-	WorldState* SwapDrawState(WorldState* oldDrawState);
 
 	unsigned TicksPerSec();
 	void ResetTicksCounter();	
@@ -80,10 +72,6 @@ private:
 	void PhysicsStep();
 
 	std::vector<PhysicsWorkerThread*> _workers;
-
-	Threading::Mutex _stateSwapMutex;
-
-	WorldState* volatile _freeState; // next buffer to write to
 
 	unsigned _tickCount;
 
