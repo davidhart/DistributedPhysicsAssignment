@@ -89,3 +89,14 @@ void Mutex::Exit()
 {
 	ReleaseMutex(_handle);
 }
+
+ScopedLock::ScopedLock(Mutex& mutex) :
+	_mutex(mutex)
+{
+	_mutex.Enter();
+}
+
+ScopedLock::~ScopedLock()
+{
+	_mutex.Exit();
+}

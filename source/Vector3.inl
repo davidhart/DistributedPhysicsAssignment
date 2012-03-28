@@ -23,6 +23,14 @@ Vector3<T>::Vector3(T v)
 	_v[2] = v;
 }
 
+template <typename T> template <typename R>
+Vector3<T>::Vector3(const Vector3<R>& rhs)
+{
+	_v[0] = (T)rhs.x();
+	_v[1] = (T)rhs.y();
+	_v[2] = (T)rhs.z();
+}
+
 template <typename T> 
 Vector3<T>::Vector3(T x, T y, T z)
 {
@@ -179,6 +187,19 @@ inline void Vector3<T>::z(T z)
 {
 	_v[2] = z;
 }
+
+template <typename T>
+inline Vector4<T> Vector3<T>::xyz0()
+{
+	return Vector4<T>(x(), y(), z(), (T)0);
+}
+
+template <typename T>
+inline Vector4<T> Vector3<T>::xyz1()
+{
+	return Vector4<T>(x(), y(), z(), (T)1);
+}
+
 
 template <typename T> 
 inline Vector3<T> operator+(const Vector3<T>& lhs, const Vector3<T> & rhs)

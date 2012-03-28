@@ -82,7 +82,7 @@ int WorldState::GetNumTriangles() const
 
 void WorldState::SwapDrawState()
 {
-	_stateChangeMutex.Enter();
+	Threading::ScopedLock lock(_stateChangeMutex);
 
 	if (_drawBuffer != _readBuffer)
 	{
@@ -90,13 +90,11 @@ void WorldState::SwapDrawState()
 	}
 
 	_drawBuffer = _readBuffer;
-
-	_stateChangeMutex.Exit();
 }
 
 void WorldState::SwapWriteState()
 {
-	_stateChangeMutex.Enter();
+	Threading::ScopedLock lock(_stateChangeMutex);
 
 	// The state we just wrote is now the readable state
 	_readBuffer = _writeBuffer;
@@ -108,8 +106,6 @@ void WorldState::SwapWriteState()
 	// The previous readState will be invalid after the next step and  
 	// will be written to at the next oppertunity
 	_freeBuffer = _readBuffer;
-
-	_stateChangeMutex.Exit();
 }
 
 void WorldState::UpdateObject(int object, double delta)

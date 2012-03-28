@@ -21,6 +21,13 @@ Vector2<T>::Vector2(T v)
 	_v[1] = v;
 }
 
+template <typename T> template <typename R>
+Vector2<T>::Vector2(const Vector2<R>& rhs)
+{
+	_v[0] = (T)rhs.x();
+	_v[1] = (T)rhs.y();
+}
+
 template <typename T>
 Vector2<T>::Vector2(T x, T y)
 {
@@ -151,6 +158,18 @@ template <typename T>
 inline void Vector2<T>::y(T y)
 {
 	_v[1] = y;
+}
+
+template <typename T>
+inline Vector3<T> Vector2<T>::xy0()
+{
+	return Vector3<T>(x(), y(), (T)0);
+}
+
+template <typename T>
+inline Vector3<T> Vector2<T>::xy1()
+{
+	return Vector3<T>(x(), y(), (T)1);
 }
 
 template <typename T>

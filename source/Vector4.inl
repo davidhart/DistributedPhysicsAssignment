@@ -24,6 +24,15 @@ Vector4<T>::Vector4(T v)
 	_v[3] = v;
 }
 
+template <typename T> template <typename R>
+Vector4<T>::Vector4(const Vector4<R>& rhs)
+{
+	_v[0] = (T)rhs.x();
+	_v[1] = (T)rhs.y();
+	_v[2] = (T)rhs.z();
+	_v[3] = (T)rhs.w();
+}
+
 template <typename T>
 Vector4<T>::Vector4(const Vector3<T>& v, T w)
 {

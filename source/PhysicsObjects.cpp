@@ -71,7 +71,7 @@ BoxObject::BoxObject(int quad) :
 void BoxObject::UpdateShape(WorldState& worldState)
 {
 	Quad quad;
-	quad._position = Vector2f((float)GetPosition().x(), (float)GetPosition().y());
+	quad._position = Vector2f(GetPosition());
 	quad._rotation = 0;
 	quad._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
 

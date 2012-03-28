@@ -1,5 +1,9 @@
 #pragma once
 
+template <typename T> class Vector2;
+template <typename T> class Vector3;
+template <typename T> class Vector4;
+
 template <typename T>
 class Vector2
 {
@@ -8,6 +12,7 @@ public:
 
 	Vector2();
 	explicit Vector2(T v);
+	template <typename R> explicit Vector2(const Vector2<R>& rhs);
 	Vector2(T x, T y);
 
 	Vector2<T>& operator+=(const Vector2<T>& rhs);
@@ -28,6 +33,9 @@ public:
 
 	void x(T x);
 	void y(T y);
+
+	Vector3<T> xy0();
+	Vector3<T> xy1();
 
 	T element(unsigned int i) const;
 	void element(unsigned int i, T value);
@@ -52,6 +60,7 @@ public:
 
 	Vector3();
 	explicit Vector3(T v);
+	template <typename R> explicit Vector3(const Vector3<R>& rhs);
 	Vector3(T x, T y, T z);
 
 	Vector3<T>& operator+=(const Vector3<T>& rhs);
@@ -76,6 +85,9 @@ public:
 	void y(T y);
 	void z(T z);
 
+	Vector4<T> xyz1();
+	Vector4<T> xyz0();
+
 	T element(unsigned int i) const;
 	void element(unsigned int i, T value);
 	T operator[](unsigned int i) const;
@@ -99,6 +111,7 @@ public:
 
 	Vector4();
 	explicit Vector4(T v);
+	template <typename R> explicit Vector4(const Vector4<R>& rhs);
 	Vector4(const Vector3<T>& v, T w);
 	Vector4(T x, T y, T z, T w);
 

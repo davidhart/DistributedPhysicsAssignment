@@ -3,11 +3,12 @@
 #pragma once
 
 #include <Windows.h>
+#include "Uncopyable.h"
 
 namespace Threading
 {
 
-	class Thread
+	class Thread : public Uncopyable
 	{
 
 	public:
@@ -28,7 +29,7 @@ namespace Threading
 
 	};
 
-	class Event
+	class Event : public Uncopyable
 	{
 
 	public:
@@ -45,7 +46,7 @@ namespace Threading
 
 	};
 
-	class Mutex
+	class Mutex : public Uncopyable
 	{
 
 	public:
@@ -59,6 +60,20 @@ namespace Threading
 	private:
 
 		HANDLE _handle;
+	};
+
+	class ScopedLock : public Uncopyable
+	{
+
+	public:
+
+		ScopedLock(Mutex& mutex);
+		~ScopedLock();
+
+	private:
+
+		Mutex& _mutex;
+
 	};
 
 }
