@@ -3,81 +3,86 @@
 #pragma once
 
 #include "Vector.h"
+#include "Color.h"
 
-class WorldState;
+class World;
 
 namespace Physics
 {
 
-class PhysicsObject
-{
-
-private:
-
-	struct Derivative
+	class PhysicsObject
 	{
-		Vector2d _velocity;
-		Vector2d _acceleration;
+
+	private:
+
+		struct Derivative
+		{
+			Vector2d _velocity;
+			Vector2d _acceleration;
+		};
+
+		struct State
+		{
+			Vector2d _position;
+			Vector2d _velocity;
+		};
+
+	public:
+
+		void SetPosition(const Vector2d& position);
+		virtual Vector2d GetPosition() const;
+
+		void SetVelocity(const Vector2d& velocity);
+		Vector2d GetVelocity() const;
+
+		void Integrate(double deltaTime);
+
+		virtual void UpdateShape(World& world) = 0;
+
+		virtual void ProcessCollisions() = 0;
+		void CollisionResponse(const Vector2d& normal);
+
+	private:
+
+		Vector2d CalculateAcceleration(const State& state) const;
+
+		Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
+
+		State _state;
+		double _mass;
+
 	};
 
-	struct State
+	class BoxObject : public PhysicsObject
 	{
-		Vector2d _position;
-		Vector2d _velocity;
+
+	public:
+
+		BoxObject(int quad);
+
+		void UpdateShape(World& world);
+		void ProcessCollisions();
+
+	private:
+
+		int _quad;
+		Color _color;
 	};
 
-public:
 
-	void SetPosition(const Vector2d& position);
-	virtual Vector2d GetPosition() const;
+	class TriangleObject : public PhysicsObject
+	{
 
-	void SetVelocity(const Vector2d& velocity);
-	Vector2d GetVelocity() const;
+	public:
 
-	void Integrate(double deltaTime);
+		TriangleObject(int triangle);
 
-	Vector2d CalculateAcceleration(const State& state) const;
+		void UpdateShape(World& world);
+		void ProcessCollisions();
 
-	virtual void UpdateShape(WorldState& worldState) = 0;
+	private:
 
-private:
-
-	Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
-
-	State _state;
-	double _mass;
-	
-};
-
-
-class BoxObject : public PhysicsObject
-{
-
-public:
-	
-	BoxObject(int quad);
-	
-	void UpdateShape(WorldState& worldState);
-
-private:
-
-	int _quad;
-
-};
-
-
-class TriangleObject : public PhysicsObject
-{
-
-public:
-
-	TriangleObject(int triangle);
-
-	void UpdateShape(WorldState& worldState);
-
-private:
-
-	int _triangle;
-};
+		int _triangle;
+	};
 
 }

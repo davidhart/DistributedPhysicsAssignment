@@ -96,7 +96,7 @@
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="VertexBinding.cpp" />
     <ClCompile Include="VertexBuffer.cpp" />
-    <ClCompile Include="WorldState.cpp" />
+    <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -120,14 +120,15 @@
     <ClInclude Include="Vector4.inl" />
     <ClInclude Include="VertexBinding.h" />
     <ClInclude Include="VertexBuffer.h" />
-    <ClInclude Include="WorldState.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\data\quadBatch.frag" />
+    <None Include="..\build\data\lineBatch.geom" />
+    <None Include="..\build\data\lineBatch.vert" />
     <None Include="..\build\data\quadBatch.vert" />
-    <None Include="..\build\data\triangleBatch.frag" />
     <None Include="..\build\data\triangleBatch.geom" />
     <None Include="..\build\data\triangleBatch.vert" />
+    <None Include="..\build\data\vertexColor.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

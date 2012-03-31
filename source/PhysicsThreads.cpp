@@ -2,16 +2,16 @@
 #include "Application.h"
 
 PhysicsWorkerThread::PhysicsWorkerThread() :
-	_worldState(NULL),
+	_world(NULL),
 	_haltPhysics(false),
 	_delta(0),
 	_threadId(0)
 {
 }
 
-void PhysicsWorkerThread::SetWorldState(WorldState* worldState)
+void PhysicsWorkerThread::SetWorld(World* world)
 {
-	_worldState = worldState;
+	_world = world;
 }
 
 void PhysicsWorkerThread::BeginStep(double delta)
@@ -53,12 +53,12 @@ void PhysicsWorkerThread::PhysicsStep()
 
 	double delta = _delta;
 
-	int minIndex = GetStartIndex(_worldState->GetNumObjects());
-	int maxIndex = GetEndIndex(_worldState->GetNumObjects());
+	int minIndex = GetStartIndex(_world->GetNumObjects());
+	int maxIndex = GetEndIndex(_world->GetNumObjects());
 
 	for (int i = minIndex; i <= maxIndex; i++)
 	{
-		_worldState->UpdateObject(i, delta);
+		_world->UpdateObject(i, delta);
 	}
 
 	_physicsDone.Raise();
@@ -132,13 +132,13 @@ PhysicsBossThread::~PhysicsBossThread()
 		delete _workers[i];
 }
 
-void PhysicsBossThread::SetWorldState(WorldState* worldState)
+void PhysicsBossThread::SetWorld(World* world)
 {
-	PhysicsWorkerThread::SetWorldState(worldState);
+	PhysicsWorkerThread::SetWorld(world);
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
-		_workers[i]->SetWorldState(worldState);
+		_workers[i]->SetWorld(world);
 	}
 }
 
@@ -206,7 +206,7 @@ void PhysicsBossThread::PhysicsStep()
 	// Synchronise with workers
 	WaitForStepCompletion();
 	
-	_worldState->SwapWriteState();
+	_world->SwapWriteState();
 	
 	// Stall the physics thread to prevent it from starving the render thread
 	Sleep(0);

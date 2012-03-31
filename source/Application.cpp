@@ -6,7 +6,8 @@
 
 Application::Application() :
 	_framesPerSecond(0),
-	_viewZoom(32)
+	_viewZoom(16),
+	_viewTranslation(0, 10)
 {
 	for (int i = 0; i < NUM_CAMERA_ACTIONS; ++i)
 	{
@@ -17,19 +18,16 @@ Application::Application() :
 void Application::Create(MyWindow& window)
 {
 	_renderer.Create(&window);
-	_shapeBatch.Create(&_renderer);
+	_world.Create(&_renderer);
 
-	_shapeBatch.AddQuadArray(&_quadBuffer);
-	_shapeBatch.AddTriangleArray(&_triangleBuffer);
-
-	for (int i = 0; i < 100000; i++)
+	for (int i = 0; i < 32000; i++)
 	{
-		Physics::BoxObject* b= _worldState.AddBox();
+		Physics::BoxObject* b= _world.AddBox();
 		b->SetPosition(Vector2d(0, 3));
 		b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 	}
 
-	_physBossThread.SetWorldState(&_worldState);
+	_physBossThread.SetWorld(&_world);
 	_physBossThread.BeginThreads();
 }
 
@@ -38,7 +36,7 @@ void Application::Draw()
 	_renderer.Clear();
 	_renderer.EnableDepthTest(false);
 
-	_shapeBatch.Draw();
+	_world.Draw();
 
 	_framesPerSecond++;
 }
@@ -46,11 +44,6 @@ void Application::Draw()
 void Application::Update(double delta)
 {
 	UpdateCamera(delta);
-
-	_worldState.SwapDrawState();
-
-	_quadBuffer.SetShapes(_worldState.GetQuadDrawBuffer(), _worldState.GetNumQuads());
-	_triangleBuffer.SetShapes(_worldState.GetTriangleDrawBuffer(), _worldState.GetNumTriangles());
 
 	_elapsed += delta;
 
@@ -102,7 +95,7 @@ void Application::UpdateCamera(double delta)
 
 void Application::Dispose()
 {
-	_shapeBatch.Dispose();
+	_world.Dispose();
 	_renderer.Dispose();
 
 	_physBossThread.StopPhysics();

@@ -6,7 +6,7 @@
 #include "Threading.h"
 #include <vector>
 
-class WorldState;
+class World;
 
 class PhysicsWorkerThread : public Threading::Thread
 {
@@ -15,7 +15,7 @@ public:
 
 	PhysicsWorkerThread();
 
-	virtual void SetWorldState(WorldState* worldState);
+	virtual void SetWorld(World* worldState);
 	void SetThreadId(unsigned id);
 	void SetNumThreads(unsigned numThreads);
 
@@ -30,7 +30,7 @@ public:
 protected:
 
 	virtual void PhysicsStep();
-	WorldState* _worldState;
+	World* _world;
 
 private:
 
@@ -54,7 +54,7 @@ public:
 	PhysicsBossThread();
 	~PhysicsBossThread();
 
-	void SetWorldState(WorldState* worldState);
+	void SetWorld(World* worldState);
 	void SetStepDelta(double delta);
 
 	void BeginThreads();

@@ -26,6 +26,12 @@ struct Triangle
 	Color _color;
 };
 
+struct Line
+{
+	Vector2f _points[2];
+	Color _color;
+};
+
 template<typename T> class ShapeArray
 {
 	friend class ShapeBatch;
@@ -85,6 +91,7 @@ private:
 
 typedef ShapeArray<Quad> QuadArray;
 typedef ShapeArray<Triangle> TriangleArray;
+typedef ShapeArray<Line> LineArray;
 
 class ShapeBatch
 {
@@ -97,11 +104,13 @@ public:
 	void Dispose();
 	void Draw();
 
-	void AddQuadArray(QuadArray* quadArray);
-	void RemoveQuadArray(QuadArray* quadArray);
+	void AddArray(QuadArray* quadArray);
+	void AddArray(TriangleArray* triangleArray);
+	void AddArray(LineArray* lineArray);
 
-	void AddTriangleArray(TriangleArray* triangleArray);
-	void RemoveTriangleArray(TriangleArray* triangleArray);
+	void RemoveArray(QuadArray* quadArray);
+	void RemoveArray(TriangleArray* triangleArray);
+	void RemoveArray(LineArray* lineArray);
 
 private:
 
@@ -114,21 +123,30 @@ private:
 	void DrawTriangleArray(TriangleArray* triangleArray);
 	void UpdateTriangleArrayBinding(TriangleArray* triangleArray);
 
+	void DrawLineArray(LineArray* lineArray);
+	void UpdateLineArrayBinding(LineArray* lineArray);
+
+	FragmentShader _vertexColorFrag;
+
 	VertexShader _quadVertShader;
-	FragmentShader _quadFragShader;
 	ShaderProgram _quadShader;
 	VertexBuffer _quadBuffer;
 	VertexBuffer _quadIndices;
 	Renderer::StandardUniformBlock _quadUniforms;
 
 	VertexShader _triangleVertShader;
-	FragmentShader _triangleFragShader;
 	GeometryShader _triangleGeomShader;
 	ShaderProgram _triangleShader;
 	Renderer::StandardUniformBlock _triangleUniforms;
 
+	VertexShader _lineVertShader;
+	GeometryShader _lineGeomShader;
+	ShaderProgram _lineShader;
+	Renderer::StandardUniformBlock _lineUniforms;
+
 	std::vector<QuadArray*> _quadArrays;
 	std::vector<TriangleArray*> _triangleArrays;
+	std::vector<LineArray*> _lineArrays;
 
 	const Renderer* _renderer;
 };

@@ -15,10 +15,10 @@ void ShapeBatch::Create(const Renderer* renderer)
 	_renderer = renderer;
 	const float quadVerts [] =
 	{
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		1.0f, 1.0f,
-		0.0f, 1.0f,
+		-0.5f, -0.5f,
+		0.5f, -0.5f,
+		0.5f, 0.5f,
+		-0.5f, 0.5f,
 	};
 
 	const unsigned int quadIndices[] =
@@ -30,50 +30,62 @@ void ShapeBatch::Create(const Renderer* renderer)
 	_quadBuffer.Create(*renderer, quadVerts, sizeof(quadVerts));
 	_quadIndices.Create(*renderer, quadIndices, sizeof(quadIndices));
 
-	_quadVertShader.CreateFromFile(*renderer, "data/quadBatch.vert");
-	_quadFragShader.CreateFromFile(*renderer, "data/quadBatch.frag");
-	_quadShader.Create(*renderer, _quadVertShader, _quadFragShader);
+	_vertexColorFrag.CreateFromFile(*renderer, "data/vertexColor.frag");
 
+	_quadVertShader.CreateFromFile(*renderer, "data/quadBatch.vert");
+	_quadShader.Create(*renderer, _quadVertShader, _vertexColorFrag);
 	renderer->GetStandardUniforms(_quadShader, _quadUniforms);
 
 	_triangleVertShader.CreateFromFile(*renderer, "data/triangleBatch.vert");
-	_triangleFragShader.CreateFromFile(*renderer, "data/triangleBatch.frag");
 	_triangleGeomShader.CreateFromFile(*renderer, "data/triangleBatch.geom");
-	_triangleShader.Create(*renderer, _triangleVertShader, _triangleFragShader, _triangleGeomShader);
-	_triangleShader.Use();
-
+	_triangleShader.Create(*renderer, _triangleVertShader, _vertexColorFrag, _triangleGeomShader);
 	renderer->GetStandardUniforms(_triangleShader, _triangleUniforms);
+
+	_lineVertShader.CreateFromFile(*renderer, "data/lineBatch.vert");
+	_lineGeomShader.CreateFromFile(*renderer, "data/lineBatch.geom");
+	_lineShader.Create(*renderer, _lineVertShader, _vertexColorFrag, _lineGeomShader);
+	renderer->GetStandardUniforms(_lineShader, _lineUniforms);
 }
 
 void ShapeBatch::Dispose()
 {
-	for (unsigned int i = 0; i < _quadArrays.size(); ++i)
+	for (unsigned i = 0; i < _quadArrays.size(); ++i)
 	{
 		_quadArrays[i]->Dispose();
 	}
 
-	for (unsigned int i = 0; i < _triangleArrays.size(); ++i)
+	for (unsigned i = 0; i < _triangleArrays.size(); ++i)
 	{
 		_triangleArrays[i]->Dispose();
 	}
 
+	for (unsigned i = 0; i < _lineArrays.size(); ++i)
+	{
+		_lineArrays[i]->Dispose();
+	}
+
 	_quadShader.Dispose();
 	_quadVertShader.Dispose();
-	_quadFragShader.Dispose();
 
 	_quadBuffer.Dispose();
 	_quadIndices.Dispose();
 
 	_triangleShader.Dispose();
 	_triangleVertShader.Dispose();
-	_triangleFragShader.Dispose();
 	_triangleGeomShader.Dispose();
+
+	_lineShader.Dispose();
+	_lineVertShader.Dispose();
+	_lineGeomShader.Dispose();
+
+	_vertexColorFrag.Dispose();
 }
 
 void ShapeBatch::Draw()
 {
-	_renderer->EnableCullFace(false);
+	_renderer->EnableCullFace(true);
 
+	// Draw Quads
 	_quadShader.Use();
 	_renderer->UpdateStandardUniforms(_quadShader, _quadUniforms);
 
@@ -82,12 +94,22 @@ void ShapeBatch::Draw()
 		DrawQuadArray(_quadArrays[i]);
 	}
 
+	// Draw Triangles
 	_triangleShader.Use();
 	_renderer->UpdateStandardUniforms(_triangleShader, _triangleUniforms);
 
 	for (unsigned int i = 0; i < _triangleArrays.size(); ++i)
 	{
 		DrawTriangleArray(_triangleArrays[i]);
+	}
+
+	// Draw Lines
+	_lineShader.Use();
+	_renderer->UpdateStandardUniforms(_lineShader, _lineUniforms);
+
+	for (unsigned i = 0; i < _lineArrays.size(); ++i)
+	{
+		DrawLineArray(_lineArrays[i]);
 	}
 }
 
@@ -148,6 +170,34 @@ void ShapeBatch::UpdateTriangleArrayBinding(TriangleArray* triangleArray)
 	triangleArray->_bufferBinding.Create(*_renderer, _triangleShader, vertexLayout, 4); 
 }
 
+void ShapeBatch::DrawLineArray(LineArray* lineArray)
+{
+	if (lineArray->GetCount() == 0)
+		return;
+
+	if (lineArray->_needsUpdate)
+	{
+		UpdateLineArrayBinding(lineArray);
+		lineArray->_needsUpdate = false;
+	}
+
+	_renderer->Draw(lineArray->_bufferBinding, PT_POINTS, 0, 2 * lineArray->GetCount());
+}
+
+void ShapeBatch::UpdateLineArrayBinding(LineArray* lineArray)
+{
+	lineArray->_needsDisposing = true;
+
+	const ArrayElement vertexLayout [] =
+	{
+		ArrayElement(lineArray->_instanceBuffer, "in_vert0", 2, AE_FLOAT, sizeof(Line), 0, 0),
+		ArrayElement(lineArray->_instanceBuffer, "in_vert1", 2, AE_FLOAT, sizeof(Line), sizeof(float)*2, 0),
+		ArrayElement(lineArray->_instanceBuffer, "in_color", 4, AE_UBYTE, sizeof(Line), sizeof(float)*4, 0), 
+	};
+
+	lineArray->_bufferBinding.Create(*_renderer, _lineShader, vertexLayout, 3); 
+}
+
 template <typename T> void ShapeBatch::AddShapeArray(const Renderer& renderer, T* shapeArray, std::vector<T*>& shapeArrays)
 {
 	assert(std::find(shapeArrays.begin(), shapeArrays.end(), shapeArray) == shapeArrays.end());
@@ -170,22 +220,32 @@ template <typename T> void ShapeBatch::RemoveShapeArray(T* shapeArray, std::vect
 	shapeArrays.erase(it);
 }
 
-void ShapeBatch::AddQuadArray(QuadArray* quadArray)
+void ShapeBatch::AddArray(QuadArray* quadArray)
 {
 	AddShapeArray<QuadArray>(*_renderer, quadArray, _quadArrays);
 }
 
-void ShapeBatch::RemoveQuadArray(QuadArray* quadArray)
+void ShapeBatch::RemoveArray(QuadArray* quadArray)
 {
 	RemoveShapeArray<QuadArray>(quadArray, _quadArrays);
 }
 
-void ShapeBatch::AddTriangleArray(TriangleArray* triangleArray)
+void ShapeBatch::AddArray(TriangleArray* triangleArray)
 {
 	AddShapeArray<TriangleArray>(*_renderer, triangleArray, _triangleArrays);
 }
 
-void ShapeBatch::RemoveTriangleArray(TriangleArray* triangleArray)
+void ShapeBatch::RemoveArray(TriangleArray* triangleArray)
 {
 	RemoveShapeArray<TriangleArray>(triangleArray, _triangleArrays);
+}
+
+void ShapeBatch::AddArray(LineArray* lineArray)
+{
+	AddShapeArray<LineArray>(*_renderer, lineArray, _lineArrays);
+}
+
+void ShapeBatch::RemoveArray(LineArray* lineArray)
+{
+	RemoveShapeArray<LineArray>(lineArray, _lineArrays);
 }

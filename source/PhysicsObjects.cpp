@@ -1,7 +1,7 @@
 // David Hart - 2012
 
 #include "PhysicsObjects.h"
-#include "WorldState.h"
+#include "World.h"
 #include "ShapeBatch.h"
 
 using namespace Physics;
@@ -28,10 +28,12 @@ Vector2d PhysicsObject::GetVelocity() const
 
 Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 {
-	//return /*Vector2d(0, -9.81) + */-state._velocity*0.8;
+	
+	return Vector2d(0, -9.81) + -state._velocity*0.999; // Gravity and friction
+	/*
 	double k = 4;
 	double b = 0;
-	return - k * state._position - b * state._velocity;
+	return - k * state._position - b * state._velocity;*/
 }
 
 void PhysicsObject::Integrate(double deltaTime)
@@ -48,6 +50,24 @@ void PhysicsObject::Integrate(double deltaTime)
 
 	SetPosition(_state._position += derivative._velocity * deltaTime);
 	SetVelocity(_state._velocity += derivative._acceleration * deltaTime);
+
+	ProcessCollisions();
+}
+
+void PhysicsObject::CollisionResponse(const Vector2d& normal)
+{
+	if (_state._velocity.length() < 0.0001)
+		_state._velocity = Vector2d(0);
+
+	double elasticity = 0.2;
+	double friction = 0.4;
+	// Elastic collision
+	_state._velocity -= (2.0 - elasticity) * normal * normal.dot(_state._velocity);
+
+	// Friction
+	Vector2d tangent = normal.tangent();
+	double VdotT = tangent.dot(_state._velocity);
+	_state._velocity -= tangent * VdotT * friction;
 }
 
 PhysicsObject::Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)
@@ -64,18 +84,51 @@ PhysicsObject::Derivative PhysicsObject::EvaluateDerivative(const State& initial
 }
 
 BoxObject::BoxObject(int quad) :
-	_quad(quad)
+	_quad(quad),
+	_color((float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), 1.0f)
 {
 }
 
-void BoxObject::UpdateShape(WorldState& worldState)
+void BoxObject::UpdateShape(World& world)
 {
 	Quad quad;
 	quad._position = Vector2f(GetPosition());
 	quad._rotation = 0;
-	quad._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+	quad._color = _color;
 
-	worldState.UpdateQuad(_quad, quad);
+	world.UpdateQuad(_quad, quad);
+}
+
+void BoxObject::ProcessCollisions()
+{
+	Vector2d position = GetPosition();
+	if (position.y() > 20 - 0.5)
+	{
+		position.y(20 - 0.5);
+		SetPosition(position);
+		CollisionResponse(Vector2d(0, -1));	
+	}
+
+	if (position.y() < 0 + 0.5)
+	{
+		position.y(0 + 0.5);
+		SetPosition(position);
+		CollisionResponse(Vector2d(0, 1));	
+	}
+
+	if (position.x() > 20 - 0.5)
+	{
+		position.x(20 - 0.5);
+		SetPosition(position);
+		CollisionResponse(Vector2d(-1, 0));	
+	}
+
+	if (position.x() < -20 + 0.5)
+	{
+		position.x(-20 + 0.5);
+		SetPosition(position);
+		CollisionResponse(Vector2d(1, 0));	
+	}
 }
 
 TriangleObject::TriangleObject(int quad) :
@@ -83,7 +136,11 @@ TriangleObject::TriangleObject(int quad) :
 {
 }
 
-void TriangleObject::UpdateShape(WorldState& worldState)
+void TriangleObject::UpdateShape(World& world)
 {
 
+}
+	
+void TriangleObject::ProcessCollisions()
+{
 }

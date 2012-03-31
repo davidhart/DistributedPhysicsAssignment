@@ -26,6 +26,7 @@ public:
 	T length() const;
 	T dot(const Vector2<T>& rhs) const;
 	Vector2<T> unit() const;
+	Vector2<T> tangent() const;
 	const Vector2<T>& normalize();
 
 	T x() const;

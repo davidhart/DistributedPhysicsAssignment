@@ -1,6 +1,6 @@
-#include "WorldState.h"
+#include "World.h"
 
-WorldState::WorldState() :
+World::World() :
 	_drawBuffer(0),
 	_readBuffer(0),
 	_writeBuffer(1),
@@ -8,7 +8,7 @@ WorldState::WorldState() :
 {
 }
 
-WorldState::~WorldState()
+World::~World()
 {
 	for (unsigned i = 0; i < _objects.size(); ++i)
 	{
@@ -16,7 +16,44 @@ WorldState::~WorldState()
 	}
 }
 
-Physics::TriangleObject* WorldState::AddTriangle()
+void World::Create(const Renderer* renderer)
+{
+	_shapeBatch.Create(renderer);
+
+	_shapeBatch.AddArray(&_quadBuffer);
+	_shapeBatch.AddArray(&_triangleBuffer);
+
+	_worldBoundaryLines.resize(4);
+	
+	Line l;
+	l._color = Color(1.0f, 0.0f, 0.0f, 1.0f);
+	l._points[0] = Vector2f(-20, 20);
+	l._points[1] = Vector2f(-20, 0);
+
+	_worldBoundaryLines[0] = l;
+
+	l._points[0].x(20);
+	l._points[1].x(20);
+	_worldBoundaryLines[1] = l;
+
+	l._points[0] = Vector2f(-20, 20);
+	l._points[1] = Vector2f(20, 20);
+	_worldBoundaryLines[2] = l;
+
+	l._points[0].y(0);
+	l._points[1].y(0);
+	_worldBoundaryLines[3] = l;
+
+	_shapeBatch.AddArray(&_worldBoundaryBuffer);
+	_worldBoundaryBuffer.SetShapes(&_worldBoundaryLines[0], _worldBoundaryLines.size());
+}
+
+void World::Dispose()
+{
+	_shapeBatch.Dispose();
+}
+
+Physics::TriangleObject* World::AddTriangle()
 {
 	for (int i = 0; i < NUM_STATE_BUFFERS; i++)
 	{
@@ -30,7 +67,7 @@ Physics::TriangleObject* WorldState::AddTriangle()
 	return triangle;
 }
 
-Physics::BoxObject* WorldState::AddBox()
+Physics::BoxObject* World::AddBox()
 {
 	for (int i = 0; i < NUM_STATE_BUFFERS; i++)
 	{
@@ -44,17 +81,17 @@ Physics::BoxObject* WorldState::AddBox()
 	return box;
 }
 
-void WorldState::UpdateTriangle(int id, const Triangle& triangle)
+void World::UpdateTriangle(int id, const Triangle& triangle)
 {
 	_buffers[_writeBuffer]._triangles[id] = triangle;
 }
 
-void WorldState::UpdateQuad(int id, const Quad& quad)
+void World::UpdateQuad(int id, const Quad& quad)
 {
 	_buffers[_writeBuffer]._quads[id] = quad;
 }
 
-const Quad* WorldState::GetQuadDrawBuffer() const
+const Quad* World::GetQuadDrawBuffer() const
 {
 	if (_buffers[_drawBuffer]._quads.empty())
 		return NULL;
@@ -62,7 +99,7 @@ const Quad* WorldState::GetQuadDrawBuffer() const
 	return &(_buffers[_drawBuffer]._quads[0]);
 }
 
-const Triangle* WorldState::GetTriangleDrawBuffer() const
+const Triangle* World::GetTriangleDrawBuffer() const
 {
 	if (_buffers[_drawBuffer]._triangles.empty())
 		return NULL;
@@ -70,17 +107,27 @@ const Triangle* WorldState::GetTriangleDrawBuffer() const
 	return &(_buffers[_drawBuffer]._triangles[0]);
 }
 
-int WorldState::GetNumQuads() const
+int World::GetNumQuads() const
 {
 	return _buffers[_drawBuffer]._quads.size();
 }
 
-int WorldState::GetNumTriangles() const
+int World::GetNumTriangles() const
 {
 	return _buffers[_drawBuffer]._quads.size();
 }
 
-void WorldState::SwapDrawState()
+void World::Draw()
+{
+	SwapDrawState();
+
+	_quadBuffer.SetShapes(GetQuadDrawBuffer(), GetNumQuads());
+	_triangleBuffer.SetShapes(GetTriangleDrawBuffer(), GetNumTriangles());
+
+	_shapeBatch.Draw();
+}
+
+void World::SwapDrawState()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
 
@@ -92,7 +139,7 @@ void WorldState::SwapDrawState()
 	_drawBuffer = _readBuffer;
 }
 
-void WorldState::SwapWriteState()
+void World::SwapWriteState()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
 
@@ -108,13 +155,13 @@ void WorldState::SwapWriteState()
 	_freeBuffer = _readBuffer;
 }
 
-void WorldState::UpdateObject(int object, double delta)
+void World::UpdateObject(int object, double delta)
 {
 	_objects[object]->Integrate(delta);
 	_objects[object]->UpdateShape(*this);
 }
 
-int WorldState::GetNumObjects() const
+int World::GetNumObjects() const
 {
 	return _objects.size();
 }

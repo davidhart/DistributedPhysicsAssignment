@@ -38,7 +38,7 @@
     </ClCompile>
     <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="PhysicsObjects.cpp" />
-    <ClCompile Include="WorldState.cpp" />
+    <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -92,7 +92,7 @@
     <ClInclude Include="Vector4.inl">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="WorldState.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
@@ -106,19 +106,22 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\build\data\quadBatch.frag">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="..\build\data\quadBatch.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\build\data\triangleBatch.frag">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\build\data\triangleBatch.geom">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\build\data\triangleBatch.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\vertexColor.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\lineBatch.geom">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\build\data\lineBatch.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

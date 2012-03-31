@@ -4,14 +4,18 @@
 #include "ShapeBatch.h"
 #include "PhysicsObjects.h"
 #include "Threading.h"
+#include "ShapeBatch.h"
 
-class WorldState
+class World
 {
 
 public:
 
-	WorldState();
-	~WorldState();
+	World();
+	~World();
+
+	void Create(const Renderer* renderer);
+	void Dispose();
 
 	// Non thread safe calls
 	Physics::TriangleObject* AddTriangle();
@@ -19,21 +23,22 @@ public:
 
 	void UpdateTriangle(int id, const Triangle& triangle);
 	void UpdateQuad(int id, const Quad& quad);
-	
-	const Quad* GetQuadDrawBuffer() const;
-	const Triangle* GetTriangleDrawBuffer() const;
 
 	int GetNumQuads() const;
 	int GetNumTriangles() const;
-
-	// Thread safe calls
-	void SwapDrawState();
-	void SwapWriteState();
+	
+	void Draw();
+	void SwapWriteState(); // Thread safe
 
 	void UpdateObject(int object, double delta);
 	int GetNumObjects() const;
 
 private:
+
+	void SwapDrawState(); // Thread safe
+
+	const Quad* GetQuadDrawBuffer() const;
+	const Triangle* GetTriangleDrawBuffer() const;
 
 	int _writeBuffer;
 	int _readBuffer;
@@ -46,10 +51,17 @@ private:
 		std::vector<Triangle> _triangles;
 	};
 
+	std::vector<Line> _worldBoundaryLines;
+
 	static const int NUM_STATE_BUFFERS = 3;
 	ShapeBuffer _buffers[3];
 
 	std::vector<Physics::PhysicsObject*> _objects;
 
 	Threading::Mutex _stateChangeMutex;
+
+	ShapeBatch _shapeBatch;
+	LineArray _worldBoundaryBuffer;
+	QuadArray _quadBuffer;
+	TriangleArray _triangleBuffer;
 };

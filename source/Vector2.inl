@@ -108,6 +108,12 @@ inline Vector2<T> Vector2<T>::unit() const
 }
 
 template <typename T>
+inline Vector2<T> Vector2<T>::tangent() const
+{
+	return Vector2<T>(-y(), x());
+}
+
+template <typename T>
 inline const Vector2<T>& Vector2<T>::normalize()
 {
 	T l = length();

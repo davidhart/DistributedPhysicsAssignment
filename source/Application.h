@@ -7,9 +7,8 @@
 #pragma once
 
 #include "Renderer.h"
-#include "ShapeBatch.h"
 #include "PhysicsThreads.h"
-#include "WorldState.h"
+#include "World.h"
 
 class MyWindow;
 
@@ -43,16 +42,13 @@ private:
 	void UpdateViewMatrix();
 
 	Renderer _renderer;
-	ShapeBatch _shapeBatch;
-	QuadArray _quadBuffer;
-	TriangleArray _triangleBuffer;
 
 	double _elapsed;
 	unsigned _framesPerSecond;
 
 	PhysicsBossThread _physBossThread;
 
-	WorldState _worldState;
+	World _world;
 
 	Vector2f _viewTranslation;
 	float _viewZoom;
