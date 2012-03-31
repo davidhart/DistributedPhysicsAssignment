@@ -20,7 +20,7 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer);
 
-	for (int i = 0; i < 32000; i++)
+	for (int i = 0; i < 2000; i++)
 	{
 		Physics::BoxObject* b= _world.AddBox();
 		b->SetPosition(Vector2d(0, 3));
@@ -61,7 +61,6 @@ void Application::Update(double delta)
 void Application::UpdateCamera(double delta)
 {
 	Vector2f panDirection(0.0f);
-	bool cameraUpdate = false;
 	if (_cameraState[CAMERA_PAN_LEFT])
 	{
 		panDirection.x(panDirection.x() - 1);

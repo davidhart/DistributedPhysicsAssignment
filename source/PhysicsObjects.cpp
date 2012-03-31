@@ -39,10 +39,11 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 void PhysicsObject::Integrate(double deltaTime)
 {
 	// Integrate using RK4 method
-	Derivative a = EvaluateDerivative(_state, Derivative(), 0);
+	Derivative d;
+	Derivative a = EvaluateDerivative(_state, d, 0);
     Derivative b = EvaluateDerivative(_state, a, deltaTime*0.5);
     Derivative c = EvaluateDerivative(_state, b, deltaTime*0.5);
-    Derivative d = EvaluateDerivative(_state, c, deltaTime);
+    d = EvaluateDerivative(_state, c, deltaTime);
 
 	Derivative derivative;
 	derivative._velocity = 1.0/6.0 * (a._velocity + 2.0*(b._velocity + c._velocity) + d._velocity);

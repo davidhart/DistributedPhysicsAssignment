@@ -53,7 +53,7 @@ public:
 
 	inline void SetShapes(const T* shapes, unsigned int count)
 	{
-		int bufferSize = count * sizeof(T);
+		unsigned bufferSize = count * sizeof(T);
 
 		// If we will resize the buffer then we will need to re-create the binding
 		if (bufferSize != _instanceBuffer.Size())

@@ -192,7 +192,6 @@ void PhysicsBossThread::PhysicsStep()
 {
 	// TODO: timer class
 	LARGE_INTEGER endTime;
-	DWORD oldAff = SetThreadAffinityMask(GetCurrentThread(), 1);
 	QueryPerformanceCounter(&endTime);
 	
 	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;

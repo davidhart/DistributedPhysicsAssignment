@@ -24,7 +24,7 @@ enum ElementType
 	AE_USHORT = GL_UNSIGNED_SHORT,
 };
 
-struct ArrayElement
+struct ArrayElement : public Uncopyable
 {
 	const VertexBuffer& buffer;
 	const char* attribute;
