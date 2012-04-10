@@ -52,6 +52,7 @@ private:
 
 typedef Vector2<float> Vector2f;
 typedef Vector2<double> Vector2d;
+typedef Vector2<int> Vector2i;
 
 template <typename T>
 class Vector3
@@ -103,6 +104,7 @@ private:
 
 typedef Vector3<float> Vector3f;
 typedef Vector3<double> Vector3d;
+typedef Vector3<int> Vector3i;
 
 template <typename T>
 class Vector4
@@ -151,3 +153,4 @@ private:
 
 typedef Vector4<float> Vector4f;
 typedef Vector4<double> Vector4d;
+typedef Vector4<int> Vector4i;

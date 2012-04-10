@@ -29,7 +29,7 @@ Vector2d PhysicsObject::GetVelocity() const
 Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 {
 	
-	return Vector2d(0, -9.81) + -state._velocity*0.999; // Gravity and friction
+	return Vector2d(0, -9.81) + -state._velocity*0.999; // Gravity and drag
 	/*
 	double k = 4;
 	double b = 0;
@@ -38,6 +38,7 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 
 void PhysicsObject::Integrate(double deltaTime)
 {
+	test = 0;
 	// Integrate using RK4 method
 	Derivative d;
 	Derivative a = EvaluateDerivative(_state, d, 0);
@@ -57,6 +58,9 @@ void PhysicsObject::Integrate(double deltaTime)
 
 void PhysicsObject::CollisionResponse(const Vector2d& normal)
 {
+	if (_state._velocity.dot(normal) > 0)
+		return;
+
 	if (_state._velocity.length() < 0.0001)
 		_state._velocity = Vector2d(0);
 
@@ -95,7 +99,11 @@ void BoxObject::UpdateShape(World& world)
 	Quad quad;
 	quad._position = Vector2f(GetPosition());
 	quad._rotation = 0;
-	quad._color = _color;
+
+	if (test != 1)
+		quad._color = _color;
+	else
+		quad._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
 
 	world.UpdateQuad(_quad, quad);
 }
@@ -130,6 +138,28 @@ void BoxObject::ProcessCollisions()
 		SetPosition(position);
 		CollisionResponse(Vector2d(1, 0));	
 	}
+}
+
+bool BoxObject::TestCollision(PhysicsObject& object, Collision& collision) // assume it is a box for now
+{
+
+	Vector2d dist = object.GetPosition() - GetPosition();
+
+	if (dist.length() == 0)
+		return false;
+
+	if (abs(dist.x()) < 1 && abs(dist.y()) < 1)
+	{
+		if (abs(dist.x()) < abs(dist.y()))
+			dist.x(0);
+		else
+			dist.y(0);
+		
+		collision._collisionNormal = -dist.normalize();
+		return true;
+	}
+
+	return false;
 }
 
 TriangleObject::TriangleObject(int quad) :

@@ -9,6 +9,12 @@ class World;
 
 namespace Physics
 {
+	struct Collision
+	{
+		Vector2d _collisionNormal;
+		// TODO: penetration distance?
+		// TODO: contact point
+	};
 
 	class PhysicsObject
 	{
@@ -42,6 +48,11 @@ namespace Physics
 		virtual void ProcessCollisions() = 0;
 		void CollisionResponse(const Vector2d& normal);
 
+		// TODO: double dispatch object types
+		virtual bool TestCollision(PhysicsObject& object, Collision& collision) { return false; };
+
+		int test;
+
 	private:
 
 		Vector2d CalculateAcceleration(const State& state) const;
@@ -62,6 +73,7 @@ namespace Physics
 
 		void UpdateShape(World& world);
 		void ProcessCollisions();
+		bool TestCollision(PhysicsObject& object, Collision& collision);
 
 	private:
 

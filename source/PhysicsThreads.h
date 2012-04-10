@@ -8,28 +8,44 @@
 
 class World;
 
+class PhysicsStage
+{
+
+public:
+
+	PhysicsStage();
+	void Begin();
+	void Completed();
+	void WaitForBegin();
+	void WaitForCompletion();
+
+private:
+
+	Threading::Event _begin;
+	Threading::Event _end;
+};
+
 class PhysicsWorkerThread : public Threading::Thread
 {
 
 public:
 
+	friend class PhysicsBossThread;
+
 	PhysicsWorkerThread();
 
-	virtual void SetWorld(World* worldState);
 	void SetThreadId(unsigned id);
 	void SetNumThreads(unsigned numThreads);
 
 	int GetStartIndex(unsigned count);
 	int GetEndIndex(unsigned count);
 
-	virtual void BeginStep(double delta);
-	virtual void WaitForStepCompletion();
-
-	virtual void StopPhysics();
-
 protected:
 
 	virtual void PhysicsStep();
+	void Integrate();
+	void BroadPhase();
+	void SolveCollisions();
 	World* _world;
 
 private:
@@ -42,8 +58,9 @@ private:
 	volatile double _delta;
 	volatile bool _haltPhysics;
 
-	Threading::Event _physicsBegin;
-	Threading::Event _physicsDone;
+	PhysicsStage _integrationStage;
+	PhysicsStage _broadPhaseStage;
+	PhysicsStage _solveCollisionStage;
 };
 
 class PhysicsBossThread : public PhysicsWorkerThread
@@ -66,13 +83,21 @@ public:
 
 private:
 
-	void BeginStep(double delta);
-	
-	void WaitForStepCompletion();
+	void ExitWorkers();
+
+	void BeginIntegration();
+	void BeginBroadphase();
+	void BeginSolveCollisions();
+
+	void JoinIntegration();
+	void JoinBroadphase();
+	void JoinSolveCollisions();
+
 	void PhysicsStep();
 
 	std::vector<PhysicsWorkerThread*> _workers;
 
+	bool _shuttingDown;
 	unsigned _tickCount;
 
 	// TODO: move these into timer class

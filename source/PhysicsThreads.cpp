@@ -1,39 +1,40 @@
 #include "PhysicsThreads.h"
 #include "Application.h"
 
+PhysicsStage::PhysicsStage()
+{
+	_begin.Reset();
+	_end.Reset();
+}
+
+void PhysicsStage::Begin()
+{
+	_begin.Raise();
+}
+
+void PhysicsStage::Completed()
+{
+	_end.Raise();
+}
+
+void PhysicsStage::WaitForBegin()
+{
+	_begin.Wait();
+	_begin.Reset();
+}
+
+void PhysicsStage::WaitForCompletion()
+{
+	_end.Wait();
+	_end.Reset();
+}
+
 PhysicsWorkerThread::PhysicsWorkerThread() :
 	_world(NULL),
 	_haltPhysics(false),
 	_delta(0),
 	_threadId(0)
 {
-}
-
-void PhysicsWorkerThread::SetWorld(World* world)
-{
-	_world = world;
-}
-
-void PhysicsWorkerThread::BeginStep(double delta)
-{
-	_delta = delta;
-	_physicsDone.Reset();
-	_physicsBegin.Raise();
-}
-
-void PhysicsWorkerThread::WaitForStepCompletion()
-{
-	// If we are shutting down there is a chance a worker thread already exited, 
-	// in which case we should not wait for it
-	if (!_haltPhysics && IsRunning())
-		_physicsDone.Wait();
-}
-
-void PhysicsWorkerThread::StopPhysics()
-{
-	_haltPhysics = true;
-
-	Join();
 }
 
 void PhysicsWorkerThread::SetThreadId(unsigned id)
@@ -48,8 +49,16 @@ void PhysicsWorkerThread::SetNumThreads(unsigned numThreads)
 
 void PhysicsWorkerThread::PhysicsStep()
 {
-	_physicsBegin.Wait();
-	_physicsBegin.Reset();
+	Integrate();
+
+	BroadPhase();
+
+	SolveCollisions();
+}
+
+void PhysicsWorkerThread::Integrate()
+{
+	_integrationStage.WaitForBegin();
 
 	double delta = _delta;
 
@@ -61,7 +70,31 @@ void PhysicsWorkerThread::PhysicsStep()
 		_world->UpdateObject(i, delta);
 	}
 
-	_physicsDone.Raise();
+	_integrationStage.Completed();
+}
+
+void PhysicsWorkerThread::BroadPhase()
+{
+	_broadPhaseStage.WaitForBegin();
+
+	int minIndex = GetStartIndex(_world->GetNumBucketsWide());
+	int maxIndex = GetEndIndex(_world->GetNumBucketsWide());
+
+	_world->BroadPhase(minIndex, maxIndex);
+
+	_broadPhaseStage.Completed();
+}
+
+void PhysicsWorkerThread::SolveCollisions()
+{
+	_solveCollisionStage.WaitForBegin();
+
+	int minIndex = GetStartIndex(_world->GetNumBucketsWide());
+	int maxIndex = GetEndIndex(_world->GetNumBucketsWide());
+
+	_world->SolveCollisions(minIndex, maxIndex);
+
+	_solveCollisionStage.Completed();
 }
 
 unsigned PhysicsWorkerThread::ThreadMain()
@@ -108,7 +141,8 @@ int PhysicsWorkerThread::GetEndIndex(unsigned count)
 }
 
 PhysicsBossThread::PhysicsBossThread() :
-	_tickCount(0)
+	_tickCount(0),
+	_shuttingDown(false)
 {
 	SetThreadId(0);
 	
@@ -134,11 +168,11 @@ PhysicsBossThread::~PhysicsBossThread()
 
 void PhysicsBossThread::SetWorld(World* world)
 {
-	PhysicsWorkerThread::SetWorld(world);
+	_world = world;
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
-		_workers[i]->SetWorld(world);
+		_workers[i]->_world = world;
 	}
 }
 
@@ -155,37 +189,29 @@ void PhysicsBossThread::BeginThreads()
 	}
 }
 
-void PhysicsBossThread::BeginStep(double delta)
-{
-	PhysicsWorkerThread::BeginStep(delta);
-
-	for (unsigned i = 0; i < _workers.size(); ++i)
-	{
-		_workers[i]->BeginStep(delta);
-	}
-}
-
+// Bring the physics engine to a halt, this function will block until all active physics
+// threads come to a halt
 void PhysicsBossThread::StopPhysics()
 {
+	_shuttingDown = true;
 	// Stop worker threads first because the BossThread will
 	// not get stuck waiting to begin, whereas workers can
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
-		_workers[i]->StopPhysics();
+		_workers[i]->Join();
 	}
 
-	PhysicsWorkerThread::StopPhysics();
+	
+	Join();
 }
 
-
-void PhysicsBossThread::WaitForStepCompletion()
+void PhysicsBossThread::ExitWorkers()
 {
+	_haltPhysics = true;
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
-		_workers[i]->WaitForStepCompletion();
+		_workers[i]->_haltPhysics = true;
 	}
-	
-	PhysicsWorkerThread::WaitForStepCompletion();
 }
 
 void PhysicsBossThread::PhysicsStep()
@@ -196,16 +222,46 @@ void PhysicsBossThread::PhysicsStep()
 	
 	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
 	
-	// Wake up the workers
-	BeginStep(delta);
+	SetStepDelta(delta);
 
-	// Complete the current step on all threads including this one
-	PhysicsWorkerThread::PhysicsStep();
+	if (_shuttingDown)
+	{
+		ExitWorkers();
+	}
 
-	// Synchronise with workers
-	WaitForStepCompletion();
-	
+	// Workers begin integration task
+	BeginIntegration();
+	PhysicsWorkerThread::Integrate();
+	JoinIntegration();
+
+	// Workers begin broadphase task
+	BeginBroadphase();
+	PhysicsWorkerThread::BroadPhase();
+	JoinBroadphase();
+
+	// Workers begin collision solve task
+	BeginSolveCollisions();
+	PhysicsWorkerThread::SolveCollisions();
+	JoinSolveCollisions();
+
 	_world->SwapWriteState();
+
+	//std::cout << "---" << std::endl;
+	int test = 0;
+	for (int y = _world->GetNumBucketsTall() - 1; y >= 0; --y)
+	{
+		for (int x = 0; x < _world->GetNumBucketsWide(); ++x)
+		{
+			//std::cout << _world->GetNumObjectsInBucket(x, y) << " ";
+			test += _world->GetNumObjectsInBucket(x,y);
+		}
+		//std::cout << std::endl;
+	}
+
+	if (test != _world->GetNumObjects())
+	{
+		std::cout << "Objects missing from buckets!!! " << test << std::endl;
+	}
 	
 	// Stall the physics thread to prevent it from starving the render thread
 	Sleep(0);
@@ -223,4 +279,74 @@ void PhysicsBossThread::ResetTicksCounter()
 unsigned PhysicsBossThread::TicksPerSec()
 {
 	return _tickCount;
+}
+
+void PhysicsBossThread::SetStepDelta(double delta)
+{
+	_delta = delta;
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_delta = delta;
+	}
+}
+
+void PhysicsBossThread::BeginIntegration()
+{
+	_integrationStage.Begin();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_integrationStage.Begin();
+	}
+}
+
+void PhysicsBossThread::BeginBroadphase()
+{
+	_broadPhaseStage.Begin();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_broadPhaseStage.Begin();
+	}
+}
+
+void PhysicsBossThread::BeginSolveCollisions()
+{
+	_solveCollisionStage.Begin();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_solveCollisionStage.Begin();
+	}
+}
+
+void PhysicsBossThread::JoinIntegration()
+{
+	_integrationStage.WaitForCompletion();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_integrationStage.WaitForCompletion();
+	}
+}
+
+void PhysicsBossThread::JoinBroadphase()
+{
+	_broadPhaseStage.WaitForCompletion();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_broadPhaseStage.WaitForCompletion();
+	}
+}
+
+void PhysicsBossThread::JoinSolveCollisions()
+{
+	_solveCollisionStage.WaitForCompletion();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_solveCollisionStage.WaitForCompletion();
+	}
 }

@@ -152,7 +152,7 @@ void ShapeBatch::DrawTriangleArray(TriangleArray* triangleArray)
 		triangleArray->_needsUpdate = false;
 	}
 
-	_renderer->Draw(triangleArray->_bufferBinding, PT_POINTS, 0, 3 * triangleArray->GetCount());
+	_renderer->Draw(triangleArray->_bufferBinding, PT_POINTS, 0, triangleArray->GetCount());
 }
 
 void ShapeBatch::UpdateTriangleArrayBinding(TriangleArray* triangleArray)
@@ -181,7 +181,7 @@ void ShapeBatch::DrawLineArray(LineArray* lineArray)
 		lineArray->_needsUpdate = false;
 	}
 
-	_renderer->Draw(lineArray->_bufferBinding, PT_POINTS, 0, 2 * lineArray->GetCount());
+	_renderer->Draw(lineArray->_bufferBinding, PT_POINTS, 0, lineArray->GetCount());
 }
 
 void ShapeBatch::UpdateLineArrayBinding(LineArray* lineArray)

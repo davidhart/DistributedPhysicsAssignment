@@ -4,10 +4,12 @@
 #include "ShapeBatch.h"
 #include "PhysicsObjects.h"
 #include "Threading.h"
+#include "Vector.h"
 #include "ShapeBatch.h"
 
 class World
 {
+	typedef std::vector<Physics::PhysicsObject*> Bucket;
 
 public:
 
@@ -33,7 +35,24 @@ public:
 	void UpdateObject(int object, double delta);
 	int GetNumObjects() const;
 
+	void BroadPhase(int bucketXMin, int bucketXMax);
+	int GetNumBucketsWide() const;
+	int GetNumBucketsTall() const;
+	int GetNumObjectsInBucket(int x, int y)
+	{
+		return _objectBuckets[GetBucketIndex(Vector2i(x, y))].size();
+	}
+
+	void SolveCollisions(int bucketXMin, int bucketXMax);
+
 private:
+
+	void TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket);
+	void SolveCollisionsInBucket(const Vector2i& bucket);
+
+	Vector2i GetBucketForPoint(const Vector2d& point) const;
+	Vector2d GetBucketMin(int x, int y) const;
+	int GetBucketIndex(const Vector2i& bucket) const;
 
 	void SwapDrawState(); // Thread safe
 
@@ -64,4 +83,10 @@ private:
 	LineArray _worldBoundaryBuffer;
 	QuadArray _quadBuffer;
 	TriangleArray _triangleBuffer;
+
+	std::vector< Bucket > _objectBuckets;
+
+	Vector2d _worldMin;
+	Vector2d _worldMax;
+	Vector2d _bucketSize;
 };

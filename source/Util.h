@@ -37,6 +37,11 @@ namespace Util
 		return a < b ? a : b;
 	}
 
+	template <typename T> T Clamp(T v, T min, T max)
+	{
+		return Min<T>( Max<T>(min, v), max );
+	}
+
 	inline float DegreesToRadians(float degrees)
 	{
 		return degrees * PI / 180.0f;

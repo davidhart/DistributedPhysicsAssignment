@@ -20,10 +20,10 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer);
 
-	for (int i = 0; i < 2000; i++)
+	for (int i = 0; i < 200; i++)
 	{
 		Physics::BoxObject* b= _world.AddBox();
-		b->SetPosition(Vector2d(0, 3));
+		b->SetPosition(Vector2d(Util::RandRange(-20, 20), Util::RandRange(0, 20)));
 		b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 	}
 
