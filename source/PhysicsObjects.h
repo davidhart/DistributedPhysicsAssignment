@@ -9,11 +9,21 @@ class World;
 
 namespace Physics
 {
+	class PhysicsObject;
+
 	struct Collision
 	{
 		Vector2d _collisionNormal;
-		// TODO: penetration distance?
-		// TODO: contact point
+		double _penetrationDistance;
+
+		Vector2d _objectAMomentum;
+		Vector2d _objectBMomentum;
+
+		enum eObject
+		{
+			OBJECT_A,
+			OBJECT_B,
+		};
 	};
 
 	class PhysicsObject
@@ -35,21 +45,29 @@ namespace Physics
 
 	public:
 
+		PhysicsObject();
+
 		void SetPosition(const Vector2d& position);
 		virtual Vector2d GetPosition() const;
 
 		void SetVelocity(const Vector2d& velocity);
 		Vector2d GetVelocity() const;
 
+		double GetMass() const;
+		void SetMass(double mass);
+
 		void Integrate(double deltaTime);
 
 		virtual void UpdateShape(World& world) = 0;
 
 		virtual void ProcessCollisions() = 0;
-		void CollisionResponse(const Vector2d& normal);
 
 		// TODO: double dispatch object types
-		virtual bool TestCollision(PhysicsObject& object, Collision& collision) { return false; };
+		virtual bool TestCollision(PhysicsObject& object, Collision& collision) { return false; }
+
+		void AddCollisionConstraint(const Collision& collision, Collision::eObject object);
+
+	protected:
 
 		int test;
 
@@ -59,8 +77,14 @@ namespace Physics
 
 		Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
 
+		void SolveConstraints();
+
 		State _state;
 		double _mass;
+
+		Vector2d _positionConstraint;
+		Vector2d _collisionNormal;
+		Vector2d _collisionMomentum;
 
 	};
 

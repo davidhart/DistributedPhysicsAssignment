@@ -138,25 +138,21 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 	double bucketXMinWorldSpace = GetBucketMin(bucketXMin, 0).x();
 	double bucketXMaxWorldSpace = bucketXMinWorldSpace + _bucketSize.x() * (bucketXMax - bucketXMin + 1);
 
+	bool xMin = bucketXMin == 0;
+	bool xMax = bucketXMax == GetNumBucketsWide() - 1;
+
 	for (unsigned i = 0; i < _objects.size(); ++i)
 	{
 		Vector2d position = _objects[i]->GetPosition();
 
 		// If the position is somewhere within the band this thread is concerned with
-		if (   position.x() >= bucketXMinWorldSpace 
-			&& position.x() <  bucketXMaxWorldSpace  )
+		if (   (position.x() >= bucketXMinWorldSpace || xMin)
+			&& (position.x() <  bucketXMaxWorldSpace || xMax) )
 		{
-			//_objects[i]->test++;
-
-			/*
-			int test = _objects[i]->test;
-
-			if (test > 1)
-			{
-				std::cout << _objects[i]->GetPosition() << std::endl;
-			}*/
-
 			Vector2i bucket = GetBucketForPoint(position);
+
+			assert(bucket.x() >= bucketXMin);
+			assert(bucket.x() <= bucketXMax);
 
 			_objectBuckets[GetBucketIndex(bucket)].push_back(_objects[i]);
 		}
@@ -197,18 +193,17 @@ void World::TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket)
 		{
 			if (objects[i]->TestCollision(*testBucket[j], collision))
 			{
-				objects[i]->CollisionResponse(collision._collisionNormal);
-				objects[i]->test = 1;
+				objects[i]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_A);
 			}
-			
 		}
 	}
 }
 
 void World::SolveCollisionsInBucket(const Vector2i& bucket)
 {
+	
 	Bucket& bucketObjects = _objectBuckets[GetBucketIndex(bucket)];
-
+	
 	Physics::Collision collision;
 
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
@@ -217,10 +212,8 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 		{
 			if (bucketObjects[i]->TestCollision(*bucketObjects[j], collision))
 			{
-				bucketObjects[i]->CollisionResponse(collision._collisionNormal);
-				bucketObjects[i]->test = 1;
-				bucketObjects[j]->CollisionResponse(-collision._collisionNormal);
-				bucketObjects[j]->test = 1;
+				bucketObjects[i]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_A);
+				bucketObjects[j]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_B);
 			}
 		}
 	}
@@ -232,8 +225,8 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 			if (!(x == 0 && y == 0))
 				TestObjectsAgainstBucket(bucketObjects, bucket + Vector2i(x, y));
 		}
-	}	
-
+	}
+	
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
 	{
 		bucketObjects[i]->UpdateShape(*this);
@@ -326,11 +319,12 @@ int World::GetNumObjects() const
 
 Vector2i World::GetBucketForPoint(const Vector2d& point) const
 {
-	 Vector2i bucket(Vector2d(GetNumBucketsWide(), GetNumBucketsTall()) * 
-					 (point - _worldMin) / (_worldMax - _worldMin));
 
-	 bucket.x( Util::Clamp(bucket.x(), 0, GetNumBucketsWide() - 1) );
-	 bucket.y( Util::Clamp(bucket.y(), 0, GetNumBucketsTall() - 1) );
+	Vector2d p(Util::Clamp(point.x(), _worldMin.x(), _worldMax.x()-Util::EPSILON),
+		Util::Clamp(point.y(), _worldMin.y(), _worldMax.y()-Util::EPSILON));
+
+	 Vector2i bucket(Vector2d(GetNumBucketsWide(), GetNumBucketsTall()) * 
+					 (p - _worldMin) / (_worldMax - _worldMin));
 
 	 return bucket;
 }
