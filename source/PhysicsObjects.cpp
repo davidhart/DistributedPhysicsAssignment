@@ -7,10 +7,9 @@
 using namespace Physics;
 
 PhysicsObject::PhysicsObject() :
-	_collisionNormal(0),
-	_collisionMomentum(0),
 	_mass(1)
 {
+	_contacts.reserve(MAX_CONTACTS);
 }
 
 void PhysicsObject::SetPosition(const Vector2d& position)
@@ -43,8 +42,11 @@ void PhysicsObject::SetMass(double mass)
 	_mass = mass;
 }
 
-void PhysicsObject::AddCollisionConstraint(const Collision& collision, Collision::eObject object)
+void PhysicsObject::AddContact(const Contact& contact)
 {
+	_contacts.push_back(contact);
+	assert(_contacts.size() <= MAX_CONTACTS);
+	/*
 	Vector2d normal;
 
 	if (Collision::OBJECT_A == object)
@@ -59,7 +61,7 @@ void PhysicsObject::AddCollisionConstraint(const Collision& collision, Collision
 	}
 
 	test = 1;
-	_positionConstraint += normal * collision._penetrationDistance;
+	_positionConstraint += normal * collision._penetrationDistance;*/
 
 	//if (_state._velocity.dot(normal) > 0)
 	//	return;
@@ -74,6 +76,25 @@ void PhysicsObject::AddCollisionConstraint(const Collision& collision, Collision
 
 void PhysicsObject::SolveConstraints()
 {
+	for (int i = 0; i < _contacts.size(); ++i)
+	{
+		double elasticity = 0.2;
+		double friction = 0.05;
+
+		// F = nkd - bn(n.v)
+		//_state._velocity += _contacts[i]._contactNormal * 0.001 * _contacts[i]._penetrationDistance - 1.7 * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity);
+		_state._position += _contacts[i]._penetrationDistance * _contacts[i]._contactNormal;
+		
+		if (_state._velocity.dot(_contacts[i]._contactNormal) < 0)
+		_state._velocity -= (2.0 - elasticity) * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity) / GetMass();
+		
+		Vector2d tangent = _contacts[i]._contactNormal.tangent();
+		double VdotT = tangent.dot(_state._velocity);
+		_state._velocity -= tangent * VdotT * friction;
+	}
+
+	_contacts.clear();
+	/*
 	Vector2d momentum = GetVelocity() / GetMass() - _collisionMomentum;
 	Vector2d normal = _collisionNormal.normalize();
 	Vector2d velocityConstraint;
@@ -104,7 +125,7 @@ void PhysicsObject::SolveConstraints()
 	_collisionNormal = Vector2d(0);
 
 	_state._position += _positionConstraint;
-	_positionConstraint = Vector2d(0);
+	_positionConstraint = Vector2d(0);*/
 }
 
 Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
@@ -175,44 +196,44 @@ void BoxObject::UpdateShape(World& world)
 
 void BoxObject::ProcessCollisions()
 {
-	Collision collision;
-	collision._objectBMomentum = Vector2d(0);
+	Contact contact;
+	contact._relativeVelocity = GetVelocity() * GetMass();
 	Vector2d position = GetPosition();
 
 	// top
 	if (position.y() > 20 - 0.5)
 	{
-		collision._penetrationDistance = position.y() - 20 + 0.5;
-		collision._collisionNormal = Vector2d(0, -1);
-		AddCollisionConstraint(collision, Collision::OBJECT_A);
+		contact._penetrationDistance = position.y() - 20 + 0.5;
+		contact._contactNormal = Vector2d(0, -1);
+		AddContact(contact);
 	}
 
 	// bottom
 	if (position.y() < 0 + 0.5)
 	{
-		collision._penetrationDistance = -position.y() + 0.5;
-		collision._collisionNormal = Vector2d(0, 1);
-		AddCollisionConstraint(collision, Collision::OBJECT_A);
+		contact._penetrationDistance = -position.y() + 0.5;
+		contact._contactNormal = Vector2d(0, 1);
+		AddContact(contact);
 	}
 	
 	// left
 	if (position.x() > 20 - 0.5)
 	{
-		collision._penetrationDistance = position.x() - 20 + 0.5;
-		collision._collisionNormal = Vector2d(-1, 0);
-		AddCollisionConstraint(collision, Collision::OBJECT_A);
+		contact._penetrationDistance = position.x() - 20 + 0.5;
+		contact._contactNormal = Vector2d(-1, 0);
+		AddContact(contact);
 	}
 
 	// right
 	if (position.x() < -20 + 0.5)
 	{
-		collision._penetrationDistance = -position.x() + -20 + 0.5;
-		collision._collisionNormal = Vector2d(1, 0);
-		AddCollisionConstraint(collision, Collision::OBJECT_A);
+		contact._penetrationDistance = -position.x() + -20 + 0.5;
+		contact._contactNormal = Vector2d(1, 0);
+		AddContact(contact);
 	}
 }
 
-bool BoxObject::TestCollision(PhysicsObject& object, Collision& collision) // assume it is a box for now
+bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assume it is a box for now
 {
 
 	Vector2d dist = GetPosition() - object.GetPosition();
@@ -222,8 +243,7 @@ bool BoxObject::TestCollision(PhysicsObject& object, Collision& collision) // as
 
 	if (abs(dist.x()) < 1 && abs(dist.y()) < 1)
 	{
-		collision._objectAMomentum =  GetVelocity() / GetMass();
-		collision._objectBMomentum = object.GetVelocity() / object.GetMass();
+		collision._relativeVelocity = (GetVelocity() - object.GetVelocity()) / (GetMass() + object.GetMass()); // todo mass?
 
 		if (abs(dist.x()) < abs(dist.y()))
 		{
@@ -236,7 +256,7 @@ bool BoxObject::TestCollision(PhysicsObject& object, Collision& collision) // as
 			collision._penetrationDistance = (1 - abs(dist.x())) / 2;
 		}
 		
-		collision._collisionNormal = dist.normalize();
+		collision._contactNormal = dist.normalize();
 		return true;
 	}
 

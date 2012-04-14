@@ -185,15 +185,15 @@ void World::TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket)
 
 	Bucket& testBucket = _objectBuckets[GetBucketIndex(bucket)];
 
-	Physics::Collision collision;
+	Physics::Contact contact;
 
 	for (unsigned i = 0; i < objects.size(); ++i)
 	{
 		for (unsigned j = 0; j < testBucket.size(); ++j)
 		{
-			if (objects[i]->TestCollision(*testBucket[j], collision))
+			if (objects[i]->TestCollision(*testBucket[j], contact))
 			{
-				objects[i]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_A);
+				objects[i]->AddContact(contact);
 			}
 		}
 	}
@@ -204,16 +204,19 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 	
 	Bucket& bucketObjects = _objectBuckets[GetBucketIndex(bucket)];
 	
-	Physics::Collision collision;
+	Physics::Contact contact;
 
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
 	{
 		for (unsigned j = 0; j < bucketObjects.size(); ++j)
 		{
-			if (bucketObjects[i]->TestCollision(*bucketObjects[j], collision))
+			if (bucketObjects[i]->TestCollision(*bucketObjects[j], contact))
 			{
-				bucketObjects[i]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_A);
-				bucketObjects[j]->AddCollisionConstraint(collision, Physics::Collision::OBJECT_B);
+				bucketObjects[i]->AddContact(contact);
+
+				contact._contactNormal = -contact._contactNormal;
+				contact._relativeVelocity = -contact._relativeVelocity;
+				bucketObjects[j]->AddContact(contact);
 			}
 		}
 	}

@@ -4,6 +4,7 @@
 
 #include "Vector.h"
 #include "Color.h"
+#include <vector>
 
 class World;
 
@@ -11,6 +12,7 @@ namespace Physics
 {
 	class PhysicsObject;
 
+	/*
 	struct Collision
 	{
 		Vector2d _collisionNormal;
@@ -24,6 +26,15 @@ namespace Physics
 			OBJECT_A,
 			OBJECT_B,
 		};
+	};*/
+
+	struct Contact
+	{
+		Vector2d _contactNormal;
+		double _penetrationDistance;
+		Vector2d _relativeVelocity;
+
+		//void* _object;
 	};
 
 	class PhysicsObject
@@ -63,9 +74,9 @@ namespace Physics
 		virtual void ProcessCollisions() = 0;
 
 		// TODO: double dispatch object types
-		virtual bool TestCollision(PhysicsObject& object, Collision& collision) { return false; }
+		virtual bool TestCollision(PhysicsObject& object, Contact& contact) { return false; }
 
-		void AddCollisionConstraint(const Collision& collision, Collision::eObject object);
+		void AddContact(const Contact& contact);
 
 	protected:
 
@@ -83,9 +94,9 @@ namespace Physics
 		double _mass;
 
 		Vector2d _positionConstraint;
-		Vector2d _collisionNormal;
-		Vector2d _collisionMomentum;
 
+		static const int MAX_CONTACTS = 25;
+		std::vector<Contact> _contacts;
 	};
 
 	class BoxObject : public PhysicsObject
@@ -97,7 +108,7 @@ namespace Physics
 
 		void UpdateShape(World& world);
 		void ProcessCollisions();
-		bool TestCollision(PhysicsObject& object, Collision& collision);
+		bool TestCollision(PhysicsObject& object, Contact& contact);
 
 	private:
 

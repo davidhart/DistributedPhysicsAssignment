@@ -222,7 +222,7 @@ void PhysicsBossThread::PhysicsStep()
 	
 	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
 	
-	SetStepDelta(delta);
+	SetStepDelta(delta*0.5);
 
 	if (_shuttingDown)
 	{

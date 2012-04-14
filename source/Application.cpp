@@ -20,15 +20,25 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer);
 
-	for (int x = 0; x < 10; x++)
+	
+	for (int x = 0; x < 30; x++)
 	{
-		for (int y = 0; y < 10; y++)
+		for (int y = 0; y < 15; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x-5)*1, y*1.1+1));
+			b->SetPosition(Vector2d((x-10)*1, y*1.1+1));
 			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
 	}
+	
+	/*
+	for (int i = 0; i < 600; i++)
+	{
+			Physics::BoxObject* b= _world.AddBox();
+			b->SetPosition(Vector2d(Util::RandRange(-20, 20), Util::RandRange(0, 20)));
+			b->SetVelocity(Vector2d(0, 0));
+			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 30));
+	}*/
 
 	_physBossThread.SetWorld(&_world);
 	_physBossThread.BeginThreads();
