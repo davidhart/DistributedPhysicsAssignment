@@ -21,12 +21,12 @@ void Application::Create(MyWindow& window)
 	_world.Create(&_renderer);
 
 	
-	for (int x = 0; x < 30; x++)
+	for (int x = 0; x < 25; x++)
 	{
 		for (int y = 0; y < 15; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x-10)*1, y*1.1+1));
+			b->SetPosition(Vector2d((x-10)*1.01, y*1.1+1));
 			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
 	}
