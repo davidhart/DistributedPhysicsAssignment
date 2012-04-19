@@ -13,46 +13,62 @@ namespace Physics
 {
 	class PhysicsObject;
 
-	/*
-	struct Collision
-	{
-		Vector2d _collisionNormal;
-		double _penetrationDistance;
-
-		Vector2d _objectAMomentum;
-		Vector2d _objectBMomentum;
-
-		enum eObject
-		{
-			OBJECT_A,
-			OBJECT_B,
-		};
-	};*/
-
 	struct Contact
 	{
 		Vector2d _contactNormal;
 		double _penetrationDistance;
 		Vector2d _relativeVelocity;
-		//void* _object;
 	};
+
+	struct State
+	{
+		Vector2d _position;
+		Vector2d _velocity;
+	};
+
+	struct Derivative
+	{
+		Vector2d _velocity;
+		Vector2d _acceleration;
+	};
+
+	class Constraint
+	{
+
+	public:
+
+		virtual Vector2d CalculateAcceleration(const State& state) const = 0;
+
+	};
+
+	class FixedEndSpringConstraint : public Constraint
+	{
+
+	public:
+
+		FixedEndSpringConstraint();
+
+		Vector2d CalculateAcceleration(const State& state) const;
+		void SetFixedEndpoint(const Vector2d& position);
+		void SetSpringConstant(double k);
+		void SetDampingConstant(double b);
+		void SetObjectSpaceAttachmentPoint(const Vector2d& position);
+
+	private:
+		
+		Vector2d _endPoint;
+		Vector2d _attachmentPoint;
+		double _k, _b;
+
+	};
+
 
 	class PhysicsObject
 	{
 
 	private:
 
-		struct Derivative
-		{
-			Vector2d _velocity;
-			Vector2d _acceleration;
-		};
 
-		struct State
-		{
-			Vector2d _position;
-			Vector2d _velocity;
-		};
 
 	public:
 
@@ -78,6 +94,9 @@ namespace Physics
 
 		void AddContact(const Contact& contact);
 
+		void AddConstraint(const Constraint* constraint);
+		void RemoveConstraint(const Constraint* constraint);
+
 		void SetColor(const Color& color);
 		Color GetColor();
 
@@ -91,7 +110,7 @@ namespace Physics
 
 		Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
 
-		void SolveConstraints();
+		void SolveContacts();
 
 		Vector2d _jolt;
 		State _state;
@@ -101,6 +120,7 @@ namespace Physics
 
 		static const int MAX_CONTACTS = 25;
 		std::vector<Contact> _contacts;
+		std::vector<const Constraint*> _constraints;
 
 		Color _color;
 	};

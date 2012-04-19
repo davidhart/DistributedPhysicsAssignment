@@ -6,11 +6,15 @@ World::World() :
 	_writeBuffer(1),
 	_freeBuffer(2),
 	_worldMin(-20, 0),
-	_worldMax(20, 20)
+	_worldMax(20, 20),
+	_objectTiedToCursor(NULL)
 {
 	_bucketSize = (_worldMax - _worldMin) / Vector2d(GetNumBucketsWide(), GetNumBucketsTall());
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
+
+	_cursorSpring.SetSpringConstant(1000);
+	_cursorSpring.SetDampingConstant(100);
 	/*
 	for (unsigned i = 0; i < _objectBuckets.size(); ++i)
 	{
@@ -347,13 +351,25 @@ void World::HandleUserInteraction()
 {
 	Threading::ScopedLock lock(_userInteractionMutex);
 
-	if (_leftButton)
+	_cursorSpring.SetFixedEndpoint(_cursor);
+
+	if (_leftButton && _objectTiedToCursor == NULL)
 	{
 		Physics::PhysicsObject* object = FindObjectAtPoint(_cursor);
 		if (object != NULL)
 		{
+			// TODO: Worldspace -> object space function
+			_cursorSpring.SetObjectSpaceAttachmentPoint(_cursor - object->GetPosition());
 			object->SetColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
+			object->AddConstraint(&_cursorSpring);
+			_objectTiedToCursor = object;
 		}
+	}
+
+	if (!_leftButton && _objectTiedToCursor != NULL)
+	{
+		_objectTiedToCursor->RemoveConstraint(&_cursorSpring);
+		_objectTiedToCursor = NULL;
 	}
 }
 

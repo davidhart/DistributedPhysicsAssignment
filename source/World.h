@@ -103,4 +103,7 @@ private:
 	Vector2d _worldMin;
 	Vector2d _worldMax;
 	Vector2d _bucketSize;
+
+	Physics::FixedEndSpringConstraint _cursorSpring;
+	Physics::PhysicsObject* _objectTiedToCursor;
 };

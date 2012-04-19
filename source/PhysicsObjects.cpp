@@ -3,8 +3,46 @@
 #include "PhysicsObjects.h"
 #include "World.h"
 #include "ShapeBatch.h"
+#include <algorithm>
 
 using namespace Physics;
+
+
+FixedEndSpringConstraint::FixedEndSpringConstraint() :
+	_k(4),
+	_b(0.5)
+{
+}
+
+Vector2d FixedEndSpringConstraint::CalculateAcceleration(const State& state) const
+{
+	// TODO: Refactor into objectspace - worldspace function
+	Vector2d worldSpaceAttachmentPoint = state._position + _attachmentPoint;
+
+	Vector2d extension = worldSpaceAttachmentPoint - _endPoint;
+
+	return -_k * extension - _b * state._velocity;
+}
+
+void FixedEndSpringConstraint::SetFixedEndpoint(const Vector2d& position)
+{
+	_endPoint = position;
+}
+
+void FixedEndSpringConstraint::SetSpringConstant(double k)
+{
+	_k = k;
+}
+
+void FixedEndSpringConstraint::SetDampingConstant(double b)
+{
+	_b = b;
+}
+
+void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& position)
+{
+	_attachmentPoint = position;
+}
 
 PhysicsObject::PhysicsObject() :
 	_mass(1)
@@ -58,7 +96,26 @@ void PhysicsObject::AddContact(const Contact& contact)
 	assert(_contacts.size() <= MAX_CONTACTS);
 }
 
-void PhysicsObject::SolveConstraints()
+void PhysicsObject::AddConstraint(const Constraint* constraint)
+{
+	// Constraint should not already be in the list
+	assert(std::find(_constraints.begin(), _constraints.end(), constraint) == _constraints.end());
+
+	_constraints.push_back(constraint);	
+}
+
+void PhysicsObject::RemoveConstraint(const Constraint* constraint)
+{
+	std::vector<const Constraint*>::iterator it = std::find(_constraints.begin(), _constraints.end(), constraint);
+
+	if (it != _constraints.end())
+		_constraints.erase(it);
+
+	// There should be no more copies of the constraint in the list
+	assert(std::find(_constraints.begin(), _constraints.end(), constraint) == _constraints.end());
+}
+
+void PhysicsObject::SolveContacts()
 {
 	double elasticity = 0.2;
 	double friction = 0.05;
@@ -86,18 +143,19 @@ void PhysicsObject::SolveConstraints()
 
 Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 {
+	Vector2d acceleration(0);
+
+	for (unsigned i = 0; i < _constraints.size(); ++i)
+	{
+		acceleration += _constraints[i]->CalculateAcceleration(state);
+	}
 	
-	return Vector2d(0, -9.81) /*+ -state._velocity*0.999*/; // Gravity and drag
-	/*
-	double k = 4;
-	double b = 0;
-	return - k * state._position - b * state._velocity;*/
+	return acceleration += Vector2d(0, -9.81) -= state._velocity*0.0001; // Gravity and drag
 }
 
 void PhysicsObject::Integrate(double deltaTime)
 {
-	// TODO: solve constraints elsewhere
-	SolveConstraints();
+	SolveContacts();
 
 	test = 0;
 	// Integrate using RK4 method
@@ -117,7 +175,7 @@ void PhysicsObject::Integrate(double deltaTime)
 	ProcessCollisions();
 }
 
-PhysicsObject::Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)
+Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)
 {
 	State state;
 	state._position = initialState._position + derivative._velocity * deltaTime;
@@ -224,7 +282,7 @@ TriangleObject::TriangleObject(int quad) :
 {
 }
 
-void TriangleObject::UpdateShape(World& world)
+void TriangleObject::UpdateShape(World&)
 {
 
 }
