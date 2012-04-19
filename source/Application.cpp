@@ -133,9 +133,10 @@ void Application::SendUserInputToWorld()
 Vector2d Application::TranslateCursorToWorldCoords(const Vector2i& cursor)
 {
 	Vector2d position = Vector2d(cursor) / Vector2d(_width, _height) * Vector2d(_aspect * 2.0, 2.0) * (double)_viewZoom;
-	position -= Vector2d(_viewTranslation) + Vector2d(_aspect, 1.0) * (double)_viewZoom;
-
+	
 	position.y(position.y() * -1.0);
+	
+	position += Vector2d(_viewTranslation) + Vector2d(-_aspect, 1.0) * (double)_viewZoom;
 
 	return position;
 }
