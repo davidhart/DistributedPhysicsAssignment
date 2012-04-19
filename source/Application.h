@@ -36,10 +36,17 @@ public:
 
 	void CameraKeyEvent(eCameraAction action, bool state);
 
+	void MouseMoved(const Vector2i& cursor);
+	void LeftMouse(bool down);
+	void RightMouse(bool down);
+
 private:
 
 	void UpdateCamera(double delta);
 	void UpdateViewMatrix();
+
+	void SendUserInputToWorld();
+	Vector2d TranslateCursorToWorldCoords(const Vector2i& cursor);
 
 	Renderer _renderer;
 
@@ -53,8 +60,22 @@ private:
 	Vector2f _viewTranslation;
 	float _viewZoom;
 	float _aspect;
+	int _width;
+	int _height;
+
 	Matrix4 _view;
+
+	static const float CAMERA_PAN_SPEED;
+	static const float CAMERA_ZOOM_SPEED;
 
 	static const int NUM_CAMERA_ACTIONS = 6;
 	bool _cameraState[NUM_CAMERA_ACTIONS];
+
+	struct
+	{
+		Vector2i _cursor;
+		bool _leftButton;
+		bool _rightButton;
+		bool _changed;
+	} _mouseState;
 };

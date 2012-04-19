@@ -5,6 +5,7 @@
 #include "Vector.h"
 #include "Color.h"
 #include <vector>
+#include <algorithm>
 
 class World;
 
@@ -33,7 +34,6 @@ namespace Physics
 		Vector2d _contactNormal;
 		double _penetrationDistance;
 		Vector2d _relativeVelocity;
-
 		//void* _object;
 	};
 
@@ -74,9 +74,12 @@ namespace Physics
 		virtual void ProcessCollisions() = 0;
 
 		// TODO: double dispatch object types
-		virtual bool TestCollision(PhysicsObject& object, Contact& contact) { return false; }
+		virtual bool TestCollision(PhysicsObject&, Contact&) { return false; }
 
 		void AddContact(const Contact& contact);
+
+		void SetColor(const Color& color);
+		Color GetColor();
 
 	protected:
 
@@ -90,6 +93,7 @@ namespace Physics
 
 		void SolveConstraints();
 
+		Vector2d _jolt;
 		State _state;
 		double _mass;
 
@@ -97,6 +101,8 @@ namespace Physics
 
 		static const int MAX_CONTACTS = 25;
 		std::vector<Contact> _contacts;
+
+		Color _color;
 	};
 
 	class BoxObject : public PhysicsObject
@@ -113,7 +119,6 @@ namespace Physics
 	private:
 
 		int _quad;
-		Color _color;
 	};
 
 

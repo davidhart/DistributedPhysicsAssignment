@@ -42,90 +42,46 @@ void PhysicsObject::SetMass(double mass)
 	_mass = mass;
 }
 
+void PhysicsObject::SetColor(const Color& color)
+{
+	_color = color;
+}
+
+Color PhysicsObject::GetColor()
+{
+	return _color;
+}
+
 void PhysicsObject::AddContact(const Contact& contact)
 {
 	_contacts.push_back(contact);
 	assert(_contacts.size() <= MAX_CONTACTS);
-	/*
-	Vector2d normal;
-
-	if (Collision::OBJECT_A == object)
-	{
-		_collisionNormal += collision._collisionNormal;
-		_collisionMomentum += collision._objectBMomentum;
-	}
-	else 
-	{
-		_collisionNormal -= collision._collisionNormal;
-		_collisionMomentum += collision._objectAMomentum;
-	}
-
-	test = 1;
-	_positionConstraint += normal * collision._penetrationDistance;*/
-
-	//if (_state._velocity.dot(normal) > 0)
-	//	return;
-
-	/*
-	if (_state._velocity.length() < 0.0001)
-		_state._velocity = Vector2d(0);*/
-
-	/*
-	*/
 }
 
 void PhysicsObject::SolveConstraints()
 {
-	for (int i = 0; i < _contacts.size(); ++i)
-	{
-		double elasticity = 0.2;
-		double friction = 0.05;
+	double elasticity = 0.2;
+	double friction = 0.05;
 
-		// F = nkd - bn(n.v)
-		//_state._velocity += _contacts[i]._contactNormal * 0.001 * _contacts[i]._penetrationDistance - 1.7 * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity);
-		_state._position += _contacts[i]._penetrationDistance * _contacts[i]._contactNormal;
-		
-		if (_state._velocity.dot(_contacts[i]._contactNormal) < 0)
-		_state._velocity -= (2.0 - elasticity) * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity) / GetMass();
-		
-		Vector2d tangent = _contacts[i]._contactNormal.tangent();
-		double VdotT = tangent.dot(_state._velocity);
-		_state._velocity -= tangent * VdotT * friction;
+	Vector2d position = _state._position;
+
+	for (unsigned i = 0; i < _contacts.size(); ++i)
+	{
+		_state._position += _contacts[i]._contactNormal * _contacts[i]._penetrationDistance;
+
+		// TODO: solve this if statement problem
+		if (_state._velocity.dot(_contacts[i]._contactNormal) * -_contacts[i]._relativeVelocity.dot(_contacts[i]._contactNormal) < 0)
+			_state._velocity -= (2.0 - elasticity) * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity) / GetMass();
+
+		if (abs(_state._velocity.dot(_contacts[i]._contactNormal)) > Util::EPSILON)
+		{
+			Vector2d tangent = _contacts[i]._contactNormal.tangent();
+			double VdotT = tangent.dot(_contacts[i]._relativeVelocity) / GetMass();
+			_state._velocity -= tangent * VdotT * friction;
+		}
 	}
 
 	_contacts.clear();
-	/*
-	Vector2d momentum = GetVelocity() / GetMass() - _collisionMomentum;
-	Vector2d normal = _collisionNormal.normalize();
-	Vector2d velocityConstraint;
-
-	if (normal.x() != 0 || normal.y() != 0)
-	{
-		double elasticity = 0.5;
-		double friction = 0.2;
-		// Friction
-		Vector2d tangent = normal.tangent();
-		double VdotT = tangent.dot(_state._velocity);
-		_state._velocity -= tangent * VdotT * friction;
-
-		// Elastic collision
-		if (_state._velocity.dot(normal) < 0)
-		{
-			_state._velocity -= (2.0 - elasticity) * normal * normal.dot(_state._velocity);
-			
-			//if (_collisionMomentum.length() > 0.0001)
-			//_state._velocity -= normal * normal.dot(momentum) / GetMass();
-		}
-
-		//if (momentum.length() < 0.0001)
-		//	_state._velocity = Vector2d(0);		
-	}
-
-	_collisionMomentum = Vector2d(0);
-	_collisionNormal = Vector2d(0);
-
-	_state._position += _positionConstraint;
-	_positionConstraint = Vector2d(0);*/
 }
 
 Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
@@ -175,9 +131,9 @@ PhysicsObject::Derivative PhysicsObject::EvaluateDerivative(const State& initial
 }
 
 BoxObject::BoxObject(int quad) :
-	_quad(quad),
-	_color((float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), 1.0f)
+	_quad(quad)
 {
+	SetColor(Color((float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), 1.0f));
 }
 
 void BoxObject::UpdateShape(World& world)
@@ -187,7 +143,7 @@ void BoxObject::UpdateShape(World& world)
 	quad._rotation = 0;
 
 	if (test != 1)
-		quad._color = _color;
+		quad._color = GetColor();
 	else
 		quad._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
 

@@ -4,6 +4,9 @@
 #include "MyWindow.h"
 #include <iostream>
 
+const float Application::CAMERA_PAN_SPEED = 1.0f;
+const float Application::CAMERA_ZOOM_SPEED = 3.0f;
+
 Application::Application() :
 	_framesPerSecond(0),
 	_viewZoom(16),
@@ -21,9 +24,10 @@ void Application::Create(MyWindow& window)
 	_world.Create(&_renderer);
 
 	
-	for (int x = 0; x < 25; x++)
+	
+	for (int x = 0; x < 10; x++)
 	{
-		for (int y = 0; y < 15; y++)
+		for (int y = 0; y < 10; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x-10)*1.01, y*1.1+1));
@@ -32,7 +36,16 @@ void Application::Create(MyWindow& window)
 	}
 	
 	/*
-	for (int i = 0; i < 600; i++)
+	Physics::BoxObject* b= _world.AddBox();
+	b->SetPosition(Vector2d(0, 0.5));
+	b->SetVelocity(Vector2d(1, 0));
+
+	b= _world.AddBox();
+	b->SetPosition(Vector2d(0, 7.5));
+	b->SetVelocity(Vector2d(0, 0));*/
+	
+	/*
+	for (int i = 0; i < 50; i++)
 	{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d(Util::RandRange(-20, 20), Util::RandRange(0, 20)));
@@ -57,6 +70,8 @@ void Application::Draw()
 void Application::Update(double delta)
 {
 	UpdateCamera(delta);
+
+	SendUserInputToWorld();
 
 	_elapsed += delta;
 
@@ -94,15 +109,35 @@ void Application::UpdateCamera(double delta)
 
 	if (_cameraState[CAMERA_ZOOM_IN])
 	{
-		_viewZoom -= 3.0f * (float)delta;
+		_viewZoom -= CAMERA_ZOOM_SPEED * (float)delta;
 	}
 	if (_cameraState[CAMERA_ZOOM_OUT])
 	{
-		_viewZoom += 3.0f * (float)delta;
+		_viewZoom += CAMERA_ZOOM_SPEED * (float)delta;
 	}
 
-	_viewTranslation += panDirection.normalize() * (float)delta * _viewZoom;
+	_viewTranslation += CAMERA_PAN_SPEED * panDirection.normalize() * (float)delta * _viewZoom;
 	UpdateViewMatrix();
+}
+
+void Application::SendUserInputToWorld()
+{
+	if (_mouseState._changed)
+	{
+		_world.UpdateMouseInput(TranslateCursorToWorldCoords(_mouseState._cursor), _mouseState._leftButton, _mouseState._rightButton);
+
+		_mouseState._changed = false;
+	}
+}
+
+Vector2d Application::TranslateCursorToWorldCoords(const Vector2i& cursor)
+{
+	Vector2d position = Vector2d(cursor) / Vector2d(_width, _height) * Vector2d(_aspect * 2.0, 2.0) * (double)_viewZoom;
+	position -= Vector2d(_viewTranslation) + Vector2d(_aspect, 1.0) * (double)_viewZoom;
+
+	position.y(position.y() * -1.0);
+
+	return position;
 }
 
 void Application::Dispose()
@@ -116,6 +151,8 @@ void Application::Dispose()
 void Application::Resize(int width, int height)
 {
 	_aspect = width / (float)height;
+	_width = width;
+	_height = height;
 
 	UpdateViewMatrix();
 }
@@ -134,4 +171,22 @@ void Application::UpdateViewMatrix()
 void Application::CameraKeyEvent(eCameraAction action, bool state)
 {
 	_cameraState[(int)action] = state;
+}
+
+void Application::MouseMoved(const Vector2i& cursor)
+{
+	_mouseState._cursor = cursor;
+	_mouseState._changed = true;
+}
+
+void Application::LeftMouse(bool down)
+{
+	_mouseState._leftButton = down;
+	_mouseState._changed = true;
+}
+
+void Application::RightMouse(bool down)
+{
+	_mouseState._rightButton = down;
+	_mouseState._changed = true;
 }

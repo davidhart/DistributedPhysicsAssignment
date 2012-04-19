@@ -23,6 +23,8 @@ public:
 	void OnResize(int w, int h);
 	void OnKeyboard(int key, bool down);
 	void SetGXApp(gxbase::App* gxApp);
+	void OnMouseMove(int x, int y);
+	void OnMouseButton(gxbase::GLWindow::MouseButton button, bool down); 
 
 private:
 

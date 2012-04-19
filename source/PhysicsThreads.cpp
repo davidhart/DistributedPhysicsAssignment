@@ -216,6 +216,8 @@ void PhysicsBossThread::ExitWorkers()
 
 void PhysicsBossThread::PhysicsStep()
 {
+	_world->HandleUserInteraction();
+
 	// TODO: timer class
 	LARGE_INTEGER endTime;
 	QueryPerformanceCounter(&endTime);
@@ -246,29 +248,29 @@ void PhysicsBossThread::PhysicsStep()
 
 	_world->SwapWriteState();
 
-	//std::cout << "---" << std::endl;
+	SanityCheckObjectsInBuckets();
+
+	_tickCount++; // Record the step for performance measurement
+
+	startTime = endTime;
+}
+
+void PhysicsBossThread::SanityCheckObjectsInBuckets()
+{
+	// Sanity test, total number of objects in buckets should equal total number of objects
 	int test = 0;
 	for (int y = _world->GetNumBucketsTall() - 1; y >= 0; --y)
 	{
 		for (int x = 0; x < _world->GetNumBucketsWide(); ++x)
 		{
-			//std::cout << _world->GetNumObjectsInBucket(x, y) << " ";
 			test += _world->GetNumObjectsInBucket(x,y);
 		}
-		//std::cout << std::endl;
 	}
 
 	if (test != _world->GetNumObjects())
 	{
 		std::cout << "Objects missing from buckets!!! " << test << std::endl;
 	}
-	
-	// Stall the physics thread to prevent it from starving the render thread
-	Sleep(0);
-
-	_tickCount++; // Record the step for performance measurement
-
-	startTime = endTime;
 }
 
 void PhysicsBossThread::ResetTicksCounter()

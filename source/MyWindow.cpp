@@ -117,6 +117,20 @@ void MyWindow::OnKeyboard(int key, bool down)
 		Close();
 }
 
+void MyWindow::OnMouseMove(int x, int y)
+{
+	_application.MouseMoved(Vector2i(x, Height() - y));
+}
+
+void MyWindow::OnMouseButton(gxbase::GLWindow::MouseButton button, bool down)
+{
+	if (GLWindow::MBLeft == button)
+		_application.LeftMouse(down);
+
+	if (GLWindow::MBRight == button)
+		_application.RightMouse(down);
+}
+
 void MyWindow::OnResize(int w, int h)
 {
 	GLWindowEx::OnResize(w, h);

@@ -342,3 +342,66 @@ int World::GetBucketIndex(const Vector2i& bucket) const
 {
 	return bucket.x() + bucket.y() * GetNumBucketsWide();
 }
+
+void World::HandleUserInteraction()
+{
+	Threading::ScopedLock lock(_userInteractionMutex);
+
+	if (_leftButton)
+	{
+		Physics::PhysicsObject* object = FindObjectAtPoint(_cursor);
+		if (object != NULL)
+		{
+			object->SetColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
+		}
+	}
+}
+
+void World::UpdateMouseInput(const Vector2d& cursorPosition, bool leftButton, bool rightButton)
+{
+	Threading::ScopedLock lock(_userInteractionMutex);
+
+	_cursor = cursorPosition;
+	_leftButton = leftButton;
+	_rightButton = rightButton;
+}
+
+Physics::PhysicsObject* World::FindObjectAtPoint(const Vector2d& point)
+{
+	Vector2i& bucketCoord = GetBucketForPoint(point);
+	Physics::PhysicsObject* object = NULL;
+
+	for (int x = Util::Max(bucketCoord.x() - 1, 0); x < bucketCoord.x() + 2 && x < GetNumBucketsWide(); x++)
+	{
+		for (int y = Util::Max(bucketCoord.y() - 1, 0); y < bucketCoord.y() + 2 && y < GetNumBucketsTall(); y++)
+		{
+			object = FindObjectAtPointInBucket(point, Vector2i(x, y));
+
+			if (object != NULL) 
+				return object;
+		}
+	}
+
+	return NULL;
+}
+
+Physics::PhysicsObject* World::FindObjectAtPointInBucket(const Vector2d& point, const Vector2i& bucketCoord)
+{
+	Bucket& objects = _objectBuckets[GetBucketIndex(bucketCoord)];
+
+	for (unsigned i = 0; i < objects.size(); ++i)
+	{
+		// TODO: intersection test method in physics object
+		Vector2d position = objects[i]->GetPosition();
+
+		if (point.x() < position.x() + 0.5 &&
+			point.x() > position.x() - 0.5 &&
+			point.y() < position.y() + 0.5 &&
+			point.y() > position.y() - 0.5)
+		{
+			return objects[i];
+		}
+	}
+
+	return NULL;
+}

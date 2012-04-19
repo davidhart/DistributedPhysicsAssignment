@@ -80,6 +80,8 @@ public:
 	void ResetTicksCounter();	
 
 	void StopPhysics();
+	
+	void SetMouseState(int x, int y, bool leftButton, bool rightButton);
 
 private:
 
@@ -94,6 +96,8 @@ private:
 	void JoinSolveCollisions();
 
 	void PhysicsStep();
+
+	void SanityCheckObjectsInBuckets();
 
 	std::vector<PhysicsWorkerThread*> _workers;
 
