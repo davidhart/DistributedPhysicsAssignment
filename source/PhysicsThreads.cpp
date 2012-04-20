@@ -146,7 +146,7 @@ PhysicsBossThread::PhysicsBossThread() :
 {
 	SetThreadId(0);
 	
-	for (unsigned i = 0; i < 2; ++i)
+	for (unsigned i = 0; i < 0; ++i)
 	{
 		_workers.push_back(new PhysicsWorkerThread());
 		_workers[i]->SetThreadId(i+1);
@@ -224,7 +224,7 @@ void PhysicsBossThread::PhysicsStep()
 	
 	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
 	
-	SetStepDelta(delta*0.5);
+	SetStepDelta(delta);
 
 	if (_shuttingDown)
 	{

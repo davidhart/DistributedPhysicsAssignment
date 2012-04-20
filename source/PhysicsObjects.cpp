@@ -7,6 +7,13 @@
 
 using namespace Physics;
 
+void Contact::Reverse()
+{
+	_contactNormal = -_contactNormal;
+	_relativeVelocity = -_relativeVelocity;
+
+	std::swap(_objectA, _objectB);
+}
 
 FixedEndSpringConstraint::FixedEndSpringConstraint() :
 	_k(4),
@@ -117,24 +124,34 @@ void PhysicsObject::RemoveConstraint(const Constraint* constraint)
 
 void PhysicsObject::SolveContacts()
 {
-	double elasticity = 0.2;
-	double friction = 0.05;
+	double elasticity = 0.8;
+	double friction = 0.0005;
 
 	Vector2d position = _state._position;
 
 	for (unsigned i = 0; i < _contacts.size(); ++i)
 	{
-		_state._position += _contacts[i]._contactNormal * _contacts[i]._penetrationDistance;
+		const Contact& contact = _contacts[i];
 
-		// TODO: solve this if statement problem
-		if (_state._velocity.dot(_contacts[i]._contactNormal) * -_contacts[i]._relativeVelocity.dot(_contacts[i]._contactNormal) < 0)
-			_state._velocity -= (2.0 - elasticity) * _contacts[i]._contactNormal * _contacts[i]._contactNormal.dot(_contacts[i]._relativeVelocity) / GetMass();
+		_state._position += contact._contactNormal * contact._penetrationDistance;
 
-		if (abs(_state._velocity.dot(_contacts[i]._contactNormal)) > Util::EPSILON)
+		if (contact._static)
 		{
-			Vector2d tangent = _contacts[i]._contactNormal.tangent();
-			double VdotT = tangent.dot(_contacts[i]._relativeVelocity) / GetMass();
-			_state._velocity -= tangent * VdotT * friction;
+			_state._velocity -= (1.0 + elasticity) * contact._contactNormal * contact._contactNormal.dot(_state._velocity);
+		}
+		else
+		{
+			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(contact._relativeVelocity)) / contact._totalMass;
+
+			Vector2d test = _state._velocity;
+			_state._velocity += contact._contactNormal * normalImpulse / GetMass();
+
+			if (abs(_state._velocity.dot(contact._contactNormal)) > Util::EPSILON)
+			{
+				Vector2d tangent = contact._contactNormal.tangent();
+				double VdotT = tangent.dot(contact._relativeVelocity) / GetMass();
+				_state._velocity -= tangent * VdotT * friction;
+			}
 		}
 	}
 
@@ -150,7 +167,7 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 		acceleration += _constraints[i]->CalculateAcceleration(state);
 	}
 	
-	return acceleration += Vector2d(0, -9.81) -= state._velocity*0.0001; // Gravity and drag
+	return acceleration + Vector2d(0, -9.81) /*- state._velocity*0.999*/; // Gravity and drag
 }
 
 void PhysicsObject::Integrate(double deltaTime)
@@ -211,7 +228,9 @@ void BoxObject::UpdateShape(World& world)
 void BoxObject::ProcessCollisions()
 {
 	Contact contact;
-	contact._relativeVelocity = GetVelocity() * GetMass();
+	contact._relativeVelocity = GetVelocity();
+	contact._totalMass = 1 / GetMass();
+	contact._static = true;
 	Vector2d position = GetPosition();
 
 	// top
@@ -249,15 +268,14 @@ void BoxObject::ProcessCollisions()
 
 bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assume it is a box for now
 {
-
 	Vector2d dist = GetPosition() - object.GetPosition();
 
 	if (dist.length() == 0)
 		return false;
+	
 
 	if (abs(dist.x()) < 1 && abs(dist.y()) < 1)
 	{
-		collision._relativeVelocity = (GetVelocity() - object.GetVelocity()) / (GetMass() + object.GetMass()); // todo mass?
 
 		if (abs(dist.x()) < abs(dist.y()))
 		{
@@ -269,9 +287,23 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 			dist.y(0);
 			collision._penetrationDistance = (1 - abs(dist.x())) / 2;
 		}
-		
-		collision._contactNormal = dist.normalize();
-		return true;
+
+		dist = dist.normalize();
+
+		Vector2d relVel = GetVelocity() - object.GetVelocity();
+
+		double dA = GetVelocity().dot(relVel) * GetVelocity().dot(dist) / relVel.dot(relVel);
+		double dB = -object.GetVelocity().dot(relVel) * -object.GetVelocity().dot(dist) / relVel.dot(relVel);
+
+		if (dA < 0.5 ||
+			dB < 0.5)
+		{
+			collision._totalMass = GetMass() + object.GetMass();
+			collision._relativeVelocity = relVel;
+			collision._static = false;
+			collision._contactNormal = dist;
+			return true;
+		}
 	}
 
 	return false;

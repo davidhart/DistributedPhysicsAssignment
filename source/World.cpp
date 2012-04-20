@@ -212,14 +212,13 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
 	{
-		for (unsigned j = 0; j < bucketObjects.size(); ++j)
+		for (unsigned j = i + 1; j < bucketObjects.size(); ++j)
 		{
 			if (bucketObjects[i]->TestCollision(*bucketObjects[j], contact))
 			{
 				bucketObjects[i]->AddContact(contact);
 
-				contact._contactNormal = -contact._contactNormal;
-				contact._relativeVelocity = -contact._relativeVelocity;
+				contact.Reverse();
 				bucketObjects[j]->AddContact(contact);
 			}
 		}
@@ -370,6 +369,7 @@ void World::HandleUserInteraction()
 	{
 		_objectTiedToCursor->RemoveConstraint(&_cursorSpring);
 		_objectTiedToCursor = NULL;
+		std::cout << " ====== " << std::endl;
 	}
 }
 

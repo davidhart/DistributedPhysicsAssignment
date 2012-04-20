@@ -18,6 +18,13 @@ namespace Physics
 		Vector2d _contactNormal;
 		double _penetrationDistance;
 		Vector2d _relativeVelocity;
+		double _totalMass;
+		bool _static;
+
+		void* _objectA;
+		void* _objectB;
+
+		void Reverse();
 	};
 
 	struct State

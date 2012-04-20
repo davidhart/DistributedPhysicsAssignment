@@ -31,7 +31,7 @@ void Application::Create(MyWindow& window)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x-10)*1.01, y*1.1+1));
-			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
+			//b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
 	}
 	
@@ -45,7 +45,7 @@ void Application::Create(MyWindow& window)
 	b->SetVelocity(Vector2d(0, 0));*/
 	
 	/*
-	for (int i = 0; i < 50; i++)
+	for (int i = 0; i < 2; i++)
 	{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d(Util::RandRange(-20, 20), Util::RandRange(0, 20)));
@@ -75,6 +75,7 @@ void Application::Update(double delta)
 
 	_elapsed += delta;
 
+	/*
 	if (_elapsed > 1)
 	{
 		std::cout << "FPS: " << _framesPerSecond << std::endl;
@@ -83,7 +84,7 @@ void Application::Update(double delta)
 		_framesPerSecond = 0;
 		_physBossThread.ResetTicksCounter();
 		_elapsed = 0;
-	}
+	}*/
 }
 
 void Application::UpdateCamera(double delta)
