@@ -125,7 +125,7 @@ void PhysicsObject::RemoveConstraint(const Constraint* constraint)
 void PhysicsObject::SolveContacts()
 {
 	double elasticity = 0.8;
-	double friction = 0.0005;
+	double friction = 0.05;
 
 	Vector2d position = _state._position;
 
@@ -133,25 +133,27 @@ void PhysicsObject::SolveContacts()
 	{
 		const Contact& contact = _contacts[i];
 
+		// Separate the objects
 		_state._position += contact._contactNormal * contact._penetrationDistance;
 
+		// Apply friction
+		if (abs(_state._velocity.dot(contact._contactNormal)) > Util::EPSILON)
+		{
+			Vector2d tangent = contact._contactNormal.tangent();
+			double VdotT = tangent.dot(contact._relativeVelocity) / GetMass();
+			_state._velocity -= tangent * VdotT * friction;
+		}
+
+		// For collisions against fixed objects reflect the velocity
 		if (contact._static)
 		{
 			_state._velocity -= (1.0 + elasticity) * contact._contactNormal * contact._contactNormal.dot(_state._velocity);
 		}
+		// For collisions between moving objects preserve the momentum along the collision normal
 		else
 		{
 			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(contact._relativeVelocity)) / contact._totalMass;
-
-			Vector2d test = _state._velocity;
 			_state._velocity += contact._contactNormal * normalImpulse / GetMass();
-
-			if (abs(_state._velocity.dot(contact._contactNormal)) > Util::EPSILON)
-			{
-				Vector2d tangent = contact._contactNormal.tangent();
-				double VdotT = tangent.dot(contact._relativeVelocity) / GetMass();
-				_state._velocity -= tangent * VdotT * friction;
-			}
 		}
 	}
 
@@ -291,12 +293,8 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 		dist = dist.normalize();
 
 		Vector2d relVel = GetVelocity() - object.GetVelocity();
-
-		double dA = GetVelocity().dot(relVel) * GetVelocity().dot(dist) / relVel.dot(relVel);
-		double dB = -object.GetVelocity().dot(relVel) * -object.GetVelocity().dot(dist) / relVel.dot(relVel);
-
-		if (dA < 0.5 ||
-			dB < 0.5)
+		
+		if (relVel.dot(dist) < 0)
 		{
 			collision._totalMass = GetMass() + object.GetMass();
 			collision._relativeVelocity = relVel;
