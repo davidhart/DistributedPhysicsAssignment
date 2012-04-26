@@ -1,5 +1,10 @@
 #include "Color.h"
 
+Color::Color(unsigned int color) :
+	_color(color)
+{
+}
+
 Color::Color(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha)
 {
 	_color = red | (green << 8) | (blue << 16) | (alpha << 24);
@@ -31,6 +36,11 @@ Vector4f Color::ToVector4f()
 		Util::ByteToFloatColorComponent(GetGreen()),
 		Util::ByteToFloatColorComponent(GetBlue()),
 		Util::ByteToFloatColorComponent(GetAlpha()));
+}
+
+unsigned int Color::To32BitColor()
+{
+	return _color;
 }
 
 void Color::SetRed(unsigned char red)

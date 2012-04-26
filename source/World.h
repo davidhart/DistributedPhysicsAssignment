@@ -19,9 +19,12 @@ public:
 	void Create(const Renderer* renderer);
 	void Dispose();
 
-	// Non thread safe calls
+	// May be called before integration and after narrowphase collision detection
+	// Should not be called from multiple threads
 	Physics::TriangleObject* AddTriangle();
 	Physics::BoxObject* AddBox();
+	void ClearObjects();
+	Physics::PhysicsObject* GetObject(int id);
 
 	void UpdateTriangle(int id, const Triangle& triangle);
 	void UpdateQuad(int id, const Quad& quad);

@@ -57,11 +57,12 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -70,12 +71,14 @@
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -85,6 +88,8 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix4.cpp" />
     <ClCompile Include="MyWindow.cpp" />
+    <ClCompile Include="NetworkController.cpp" />
+    <ClCompile Include="Networking.cpp" />
     <ClCompile Include="PhysicsObjects.cpp" />
     <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -105,6 +110,8 @@
     <ClInclude Include="Maths.h" />
     <ClInclude Include="Matrix4.h" />
     <ClInclude Include="MyWindow.h" />
+    <ClInclude Include="NetworkController.h" />
+    <ClInclude Include="Networking.h" />
     <ClInclude Include="PhysicsObjects.h" />
     <ClInclude Include="PhysicsThreads.h" />
     <ClInclude Include="Renderer.h" />
@@ -129,6 +136,7 @@
     <None Include="..\build\data\triangleBatch.geom" />
     <None Include="..\build\data\triangleBatch.vert" />
     <None Include="..\build\data\vertexColor.frag" />
+    <None Include="Message.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

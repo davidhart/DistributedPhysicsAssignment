@@ -39,6 +39,10 @@
     <ClCompile Include="PhysicsThreads.cpp" />
     <ClCompile Include="PhysicsObjects.cpp" />
     <ClCompile Include="World.cpp" />
+    <ClCompile Include="Networking.cpp">
+      <Filter>Networking</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -93,6 +97,10 @@
       <Filter>Util</Filter>
     </ClInclude>
     <ClInclude Include="World.h" />
+    <ClInclude Include="Networking.h">
+      <Filter>Networking</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkController.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
@@ -103,6 +111,9 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{eb5bde32-9600-4d01-9ee0-4d366ec83076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Networking">
+      <UniqueIdentifier>{e9421ce5-25b1-4245-8e48-0db6f86e5543}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -123,6 +134,9 @@
     </None>
     <None Include="..\build\data\lineBatch.vert">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="Message.inl">
+      <Filter>Networking</Filter>
     </None>
   </ItemGroup>
 </Project>

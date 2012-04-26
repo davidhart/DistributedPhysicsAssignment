@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "NetworkController.h"
 #include "Threading.h"
 #include <vector>
 
@@ -30,7 +31,7 @@ class PhysicsWorkerThread : public Threading::Thread
 
 public:
 
-	friend class PhysicsBossThread;
+	friend class GameWorldThread;
 
 	PhysicsWorkerThread();
 
@@ -63,13 +64,16 @@ private:
 	PhysicsStage _solveCollisionStage;
 };
 
-class PhysicsBossThread : public PhysicsWorkerThread
+class GameWorldThread : public PhysicsWorkerThread
 {
+
+	friend class SessionMasterController;
+	friend class WorkerController;
 
 public:
 
-	PhysicsBossThread();
-	~PhysicsBossThread();
+	GameWorldThread();
+	~GameWorldThread();
 
 	void SetWorld(World* worldState);
 	void SetStepDelta(double delta);
@@ -82,6 +86,10 @@ public:
 	void StopPhysics();
 	
 	void SetMouseState(int x, int y, bool leftButton, bool rightButton);
+
+	void CreateSession();
+	void JoinSession();
+	void TerminateSession();
 
 private:
 
@@ -107,4 +115,17 @@ private:
 	// TODO: move these into timer class
 	LARGE_INTEGER freq;
 	LARGE_INTEGER startTime;
+
+	Threading::Mutex _stateChangeMutex;
+
+	enum eState
+	{
+		STATE_STANDALONE,
+		STATE_SESSIONMASTER,
+		STATE_SESSIONWORKER,
+	};
+
+	eState _state;
+
+	NetworkController* _networkController;
 };

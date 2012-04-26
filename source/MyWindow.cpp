@@ -88,7 +88,6 @@ void MyWindow::OnKeyboard(int key, bool down)
 		bool full = !GetFullscreen();
 		SetFullscreen(full);
 	}
-
 	else if (key == VK_UP)
 	{
 		_application.CameraKeyEvent(CAMERA_PAN_UP, down);
@@ -114,7 +113,21 @@ void MyWindow::OnKeyboard(int key, bool down)
 		_application.CameraKeyEvent(CAMERA_ZOOM_OUT, down);
 	}
 	else if (VK_ESCAPE == key && down)
+	{
 		Close();
+	}
+	else if ('M' == key)
+	{
+		_application.BeginSession();
+	}
+	else if ('J' == key)
+	{
+		_application.JoinSession();
+	}
+	else if ('L' == key)
+	{
+		_application.TerminateSession();
+	}
 }
 
 void MyWindow::OnMouseMove(int x, int y)

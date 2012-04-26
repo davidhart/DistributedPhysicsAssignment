@@ -40,6 +40,10 @@ public:
 	void LeftMouse(bool down);
 	void RightMouse(bool down);
 
+	void BeginSession();
+	void JoinSession();
+	void TerminateSession();
+
 private:
 
 	void UpdateCamera(double delta);
@@ -53,7 +57,7 @@ private:
 	double _elapsed;
 	unsigned _framesPerSecond;
 
-	PhysicsBossThread _physBossThread;
+	GameWorldThread _worldThread;
 
 	World _world;
 

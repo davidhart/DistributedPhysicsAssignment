@@ -34,6 +34,6 @@ private:
 	bool _loaded;
 	bool _prevKeyStatePlus;
 	bool _prevKeyStateMinus;
-
+	Networking::System system;
 };
 

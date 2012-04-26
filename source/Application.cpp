@@ -53,8 +53,8 @@ void Application::Create(MyWindow& window)
 			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 30));
 	}*/
 
-	_physBossThread.SetWorld(&_world);
-	_physBossThread.BeginThreads();
+	_worldThread.SetWorld(&_world);
+	_worldThread.BeginThreads();
 }
 
 void Application::Draw()
@@ -75,16 +75,15 @@ void Application::Update(double delta)
 
 	_elapsed += delta;
 
-	/*
 	if (_elapsed > 1)
 	{
 		std::cout << "FPS: " << _framesPerSecond << std::endl;
-		std::cout << "PPS: " << _physBossThread.TicksPerSec() << std::endl;
+		std::cout << "PPS: " << _worldThread.TicksPerSec() << std::endl;
 
 		_framesPerSecond = 0;
-		_physBossThread.ResetTicksCounter();
+		_worldThread.ResetTicksCounter();
 		_elapsed = 0;
-	}*/
+	}
 }
 
 void Application::UpdateCamera(double delta)
@@ -147,7 +146,7 @@ void Application::Dispose()
 	_world.Dispose();
 	_renderer.Dispose();
 
-	_physBossThread.StopPhysics();
+	_worldThread.StopPhysics();
 }
 
 void Application::Resize(int width, int height)
@@ -191,4 +190,19 @@ void Application::RightMouse(bool down)
 {
 	_mouseState._rightButton = down;
 	_mouseState._changed = true;
+}
+
+void Application::BeginSession()
+{
+	_worldThread.CreateSession();
+}
+
+void Application::JoinSession()
+{
+	_worldThread.JoinSession();
+}
+
+void Application::TerminateSession()
+{
+	_worldThread.TerminateSession();
 }

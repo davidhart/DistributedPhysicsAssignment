@@ -307,6 +307,11 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 	return false;
 }
 
+unsigned int BoxObject::GetSerializationType()
+{
+	return 0; // TODO: enum
+}
+
 TriangleObject::TriangleObject(int quad) :
 	_triangle(quad)
 {
@@ -319,4 +324,9 @@ void TriangleObject::UpdateShape(World&)
 	
 void TriangleObject::ProcessCollisions()
 {
+}
+
+unsigned int TriangleObject::GetSerializationType()
+{
+	return 1; // TODO: enum
 }

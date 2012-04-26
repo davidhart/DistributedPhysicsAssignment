@@ -107,6 +107,8 @@ namespace Physics
 		void SetColor(const Color& color);
 		Color GetColor();
 
+		virtual unsigned int GetSerializationType() = 0;
+
 	protected:
 
 		int test;
@@ -143,6 +145,8 @@ namespace Physics
 		void ProcessCollisions();
 		bool TestCollision(PhysicsObject& object, Contact& contact);
 
+		unsigned int GetSerializationType();
+
 	private:
 
 		int _quad;
@@ -158,6 +162,8 @@ namespace Physics
 
 		void UpdateShape(World& world);
 		void ProcessCollisions();
+
+		unsigned int GetSerializationType();
 
 	private:
 

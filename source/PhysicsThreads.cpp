@@ -140,9 +140,11 @@ int PhysicsWorkerThread::GetEndIndex(unsigned count)
 	return countPerThread * _threadId + (countPerThread - 1);
 }
 
-PhysicsBossThread::PhysicsBossThread() :
+GameWorldThread::GameWorldThread() :
 	_tickCount(0),
-	_shuttingDown(false)
+	_shuttingDown(false),
+	_state(STATE_STANDALONE),
+	_networkController(NULL)
 {
 	SetThreadId(0);
 	
@@ -160,13 +162,16 @@ PhysicsBossThread::PhysicsBossThread() :
 	}
 }
 
-PhysicsBossThread::~PhysicsBossThread()
+GameWorldThread::~GameWorldThread()
 {
+	if (_networkController != NULL)
+		delete _networkController;
+
 	for (unsigned i = 0; i < _workers.size(); ++i)
 		delete _workers[i];
 }
 
-void PhysicsBossThread::SetWorld(World* world)
+void GameWorldThread::SetWorld(World* world)
 {
 	_world = world;
 
@@ -176,7 +181,7 @@ void PhysicsBossThread::SetWorld(World* world)
 	}
 }
 
-void PhysicsBossThread::BeginThreads()
+void GameWorldThread::BeginThreads()
 {
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceCounter(&startTime);
@@ -191,7 +196,7 @@ void PhysicsBossThread::BeginThreads()
 
 // Bring the physics engine to a halt, this function will block until all active physics
 // threads come to a halt
-void PhysicsBossThread::StopPhysics()
+void GameWorldThread::StopPhysics()
 {
 	_shuttingDown = true;
 	// Stop worker threads first because the BossThread will
@@ -205,7 +210,7 @@ void PhysicsBossThread::StopPhysics()
 	Join();
 }
 
-void PhysicsBossThread::ExitWorkers()
+void GameWorldThread::ExitWorkers()
 {
 	_haltPhysics = true;
 	for (unsigned i = 0; i < _workers.size(); ++i)
@@ -214,7 +219,7 @@ void PhysicsBossThread::ExitWorkers()
 	}
 }
 
-void PhysicsBossThread::PhysicsStep()
+void GameWorldThread::PhysicsStep()
 {
 	_world->HandleUserInteraction();
 
@@ -247,15 +252,19 @@ void PhysicsBossThread::PhysicsStep()
 	JoinSolveCollisions();
 
 	_world->SwapWriteState();
-
 	SanityCheckObjectsInBuckets();
+
+	if (_state != STATE_STANDALONE)
+	{
+		_networkController->DoTick();
+	}
 
 	_tickCount++; // Record the step for performance measurement
 
 	startTime = endTime;
 }
 
-void PhysicsBossThread::SanityCheckObjectsInBuckets()
+void GameWorldThread::SanityCheckObjectsInBuckets()
 {
 	// Sanity test, total number of objects in buckets should equal total number of objects
 	int test = 0;
@@ -273,17 +282,17 @@ void PhysicsBossThread::SanityCheckObjectsInBuckets()
 	}
 }
 
-void PhysicsBossThread::ResetTicksCounter()
+void GameWorldThread::ResetTicksCounter()
 {
 	_tickCount = 0;
 }
 
-unsigned PhysicsBossThread::TicksPerSec()
+unsigned GameWorldThread::TicksPerSec()
 {
 	return _tickCount;
 }
 
-void PhysicsBossThread::SetStepDelta(double delta)
+void GameWorldThread::SetStepDelta(double delta)
 {
 	_delta = delta;
 
@@ -293,7 +302,7 @@ void PhysicsBossThread::SetStepDelta(double delta)
 	}
 }
 
-void PhysicsBossThread::BeginIntegration()
+void GameWorldThread::BeginIntegration()
 {
 	_integrationStage.Begin();
 
@@ -303,7 +312,7 @@ void PhysicsBossThread::BeginIntegration()
 	}
 }
 
-void PhysicsBossThread::BeginBroadphase()
+void GameWorldThread::BeginBroadphase()
 {
 	_broadPhaseStage.Begin();
 
@@ -313,7 +322,7 @@ void PhysicsBossThread::BeginBroadphase()
 	}
 }
 
-void PhysicsBossThread::BeginSolveCollisions()
+void GameWorldThread::BeginSolveCollisions()
 {
 	_solveCollisionStage.Begin();
 
@@ -323,7 +332,7 @@ void PhysicsBossThread::BeginSolveCollisions()
 	}
 }
 
-void PhysicsBossThread::JoinIntegration()
+void GameWorldThread::JoinIntegration()
 {
 	_integrationStage.WaitForCompletion();
 
@@ -333,7 +342,7 @@ void PhysicsBossThread::JoinIntegration()
 	}
 }
 
-void PhysicsBossThread::JoinBroadphase()
+void GameWorldThread::JoinBroadphase()
 {
 	_broadPhaseStage.WaitForCompletion();
 
@@ -343,12 +352,53 @@ void PhysicsBossThread::JoinBroadphase()
 	}
 }
 
-void PhysicsBossThread::JoinSolveCollisions()
+void GameWorldThread::JoinSolveCollisions()
 {
 	_solveCollisionStage.WaitForCompletion();
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->_solveCollisionStage.WaitForCompletion();
+	}
+}
+
+void GameWorldThread::CreateSession()
+{
+	Threading::ScopedLock lock(_stateChangeMutex);
+
+	if (_state == STATE_STANDALONE)
+	{
+		_networkController = new SessionMasterController(*this);
+		_state = STATE_SESSIONMASTER;
+
+		std::cout << "Creating session" << std::endl;
+	}
+}
+
+void GameWorldThread::JoinSession()
+{
+	Threading::ScopedLock lock(_stateChangeMutex);
+
+	if (_state == STATE_STANDALONE)
+	{
+		_networkController = new WorkerController(*this);
+		_state = STATE_SESSIONWORKER;
+
+		std::cout << "Attempting to find session" << std::endl;
+	}
+}
+
+void GameWorldThread::TerminateSession()
+{
+	Threading::ScopedLock lock(_stateChangeMutex);
+
+	if (_state != STATE_STANDALONE)
+	{
+
+		delete _networkController;
+		_networkController = NULL;
+		_state = STATE_STANDALONE;
+
+		std::cout << "Session terminated" << std::endl;
 	}
 }

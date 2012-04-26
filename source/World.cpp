@@ -100,12 +100,10 @@ void World::Dispose()
 
 Physics::TriangleObject* World::AddTriangle()
 {
-	for (int i = 0; i < NUM_STATE_BUFFERS; i++)
-	{
-		_buffers[i]._triangles.push_back(Triangle());
-	}
+	_buffers[_writeBuffer]._triangles.push_back(Triangle());
+	//_buffers[_freeBuffer]._triangles.push_back(Triangle());
 
-	Physics::TriangleObject* triangle = new Physics::TriangleObject(_buffers[0]._triangles.size() - 1);
+	Physics::TriangleObject* triangle = new Physics::TriangleObject(_buffers[_writeBuffer]._triangles.size() - 1);
 
 	_objects.push_back(triangle);
 
@@ -114,16 +112,33 @@ Physics::TriangleObject* World::AddTriangle()
 
 Physics::BoxObject* World::AddBox()
 {
-	for (int i = 0; i < NUM_STATE_BUFFERS; i++)
-	{
-		_buffers[i]._quads.push_back(Quad());
-	}
+	_buffers[_writeBuffer]._quads.push_back(Quad());
+	//_buffers[_freeBuffer]._quads.push_back(Quad());
 
-	Physics::BoxObject* box = new Physics::BoxObject(_buffers[0]._quads.size() - 1);
+	Physics::BoxObject* box = new Physics::BoxObject(_buffers[_writeBuffer]._quads.size() - 1);
 
 	_objects.push_back(box);
 
 	return box;
+}
+
+void World::ClearObjects()
+{
+
+	for (unsigned int i = 0; i < _objects.size(); ++i)
+	{
+		delete _objects[i];
+	}
+
+	_objects.clear();
+
+	_buffers[_writeBuffer]._quads.clear();
+	_buffers[_writeBuffer]._triangles.clear();
+}
+
+Physics::PhysicsObject* World::GetObject(int id)
+{
+	return _objects[id];
 }
 
 void World::BroadPhase(int bucketXMin, int bucketXMax)
@@ -279,8 +294,8 @@ void World::Draw()
 {
 	SwapDrawState();
 
-	_quadBuffer.SetShapes(GetQuadDrawBuffer(), GetNumQuads());
-	_triangleBuffer.SetShapes(GetTriangleDrawBuffer(), GetNumTriangles());
+	_quadBuffer.SetShapes(GetQuadDrawBuffer(), _buffers[_drawBuffer]._quads.size());
+	_triangleBuffer.SetShapes(GetTriangleDrawBuffer(), _buffers[_drawBuffer]._triangles.size());
 
 	_shapeBatch.Draw();
 }
@@ -291,6 +306,17 @@ void World::SwapDrawState()
 
 	if (_drawBuffer != _readBuffer)
 	{
+		// If the buffers were resized while we were drawing update the old draw buffer to the new size
+		if (_buffers[_drawBuffer]._quads.size() != _buffers[_writeBuffer]._quads.size())
+		{
+			_buffers[_drawBuffer]._quads.resize(_buffers[_writeBuffer]._quads.size());
+		}
+
+		if (_buffers[_drawBuffer]._triangles.size() != _buffers[_writeBuffer]._triangles.size())
+		{
+			_buffers[_drawBuffer]._triangles.resize(_buffers[_writeBuffer]._triangles.size());
+		}
+
 		_freeBuffer = _drawBuffer;
 	}
 
@@ -300,6 +326,17 @@ void World::SwapDrawState()
 void World::SwapWriteState()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
+
+	// If the buffers were resized while we were drawing update the old freeBuffer buffer to the new size
+	if (_buffers[_freeBuffer]._quads.size() != _buffers[_writeBuffer]._quads.size())
+	{
+		_buffers[_freeBuffer]._quads.resize(_buffers[_writeBuffer]._quads.size());
+	}
+
+	if (_buffers[_freeBuffer]._triangles.size() != _buffers[_writeBuffer]._triangles.size())
+	{
+		_buffers[_freeBuffer]._triangles.resize(_buffers[_writeBuffer]._triangles.size());
+	}
 
 	// The state we just wrote is now the readable state
 	_readBuffer = _writeBuffer;
@@ -362,6 +399,11 @@ void World::HandleUserInteraction()
 			object->SetColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
 			object->AddConstraint(&_cursorSpring);
 			_objectTiedToCursor = object;
+		}
+		else
+		{
+			Physics::PhysicsObject* object = AddBox();
+			object->SetPosition(_cursor);
 		}
 	}
 
