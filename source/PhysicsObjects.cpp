@@ -124,6 +124,8 @@ void PhysicsObject::RemoveConstraint(const Constraint* constraint)
 
 void PhysicsObject::SolveContacts()
 {
+	ProcessCollisions();
+
 	double elasticity = 0.8;
 	double friction = 0.05;
 
@@ -174,8 +176,6 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 
 void PhysicsObject::Integrate(double deltaTime)
 {
-	SolveContacts();
-
 	test = 0;
 	// Integrate using RK4 method
 	Derivative d;
@@ -190,8 +190,6 @@ void PhysicsObject::Integrate(double deltaTime)
 
 	SetPosition(_state._position += derivative._velocity * deltaTime);
 	SetVelocity(_state._velocity += derivative._acceleration * deltaTime);
-
-	ProcessCollisions();
 }
 
 Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)

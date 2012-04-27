@@ -103,6 +103,8 @@ namespace Physics
 
 		void AddConstraint(const Constraint* constraint);
 		void RemoveConstraint(const Constraint* constraint);
+		
+		void SolveContacts();
 
 		void SetColor(const Color& color);
 		Color GetColor();
@@ -118,8 +120,6 @@ namespace Physics
 		Vector2d CalculateAcceleration(const State& state) const;
 
 		Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
-
-		void SolveContacts();
 
 		Vector2d _jolt;
 		State _state;

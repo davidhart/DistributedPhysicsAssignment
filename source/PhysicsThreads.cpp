@@ -33,7 +33,9 @@ PhysicsWorkerThread::PhysicsWorkerThread() :
 	_world(NULL),
 	_haltPhysics(false),
 	_delta(0),
-	_threadId(0)
+	_threadId(0),
+	_peerId(0),
+	_numPeers(1)
 {
 }
 
@@ -45,6 +47,16 @@ void PhysicsWorkerThread::SetThreadId(unsigned id)
 void PhysicsWorkerThread::SetNumThreads(unsigned numThreads)
 {
 	_numThreads = numThreads;
+}
+
+void PhysicsWorkerThread::SetPeerId(unsigned id)
+{
+	_peerId = id;
+}
+
+void PhysicsWorkerThread::SetNumPeers(unsigned numPeers)
+{
+	_numPeers = numPeers;
 }
 
 void PhysicsWorkerThread::PhysicsStep()
@@ -62,8 +74,9 @@ void PhysicsWorkerThread::Integrate()
 
 	double delta = _delta;
 
-	int minIndex = GetStartIndex(_world->GetNumObjects());
-	int maxIndex = GetEndIndex(_world->GetNumObjects());
+	// Integrate the objects we are responsible for
+	int minIndex = GetPeerStartIndex(_world->GetNumObjects());
+	int maxIndex = GetPeerEndIndex(_world->GetNumObjects());
 
 	for (int i = minIndex; i <= maxIndex; i++)
 	{
@@ -77,20 +90,35 @@ void PhysicsWorkerThread::BroadPhase()
 {
 	_broadPhaseStage.WaitForBegin();
 
-	int minIndex = GetStartIndex(_world->GetNumBucketsWide());
-	int maxIndex = GetEndIndex(_world->GetNumBucketsWide());
+	// The broadphase for all buckets must be done by all clients
+	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
+	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
 
 	_world->BroadPhase(minIndex, maxIndex);
 
 	_broadPhaseStage.Completed();
 }
 
+void PhysicsWorkerThread::DetectCollisions()
+{
+	_detectCollisionStage.WaitForBegin();
+
+	// Do narrowphase in the area this thread & peer is responsible for
+	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
+	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
+
+	_world->DetectCollisions(minIndex, maxIndex);
+
+	_detectCollisionStage.Completed();
+}
+
 void PhysicsWorkerThread::SolveCollisions()
 {
 	_solveCollisionStage.WaitForBegin();
 
-	int minIndex = GetStartIndex(_world->GetNumBucketsWide());
-	int maxIndex = GetEndIndex(_world->GetNumBucketsWide());
+	// Solve collisions in the area this thread & peer is responsible for
+	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
+	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
 
 	_world->SolveCollisions(minIndex, maxIndex);
 
@@ -107,37 +135,53 @@ unsigned PhysicsWorkerThread::ThreadMain()
 	return 0;
 }
 
-int PhysicsWorkerThread::GetStartIndex(unsigned count)
+int PhysicsWorkerThread::GetStartIndexForId(unsigned id, unsigned numIds, unsigned count)
 {
-	if (count <= _numThreads)
+	if (count <= numIds)
 	{
-		if (_threadId >= count)
+		if (id >= count)
 			return 0;
 
-		return _threadId;
+		return id;
 	}
 
-	unsigned countPerThread = count / _numThreads;
+	unsigned countPerId = count / numIds;
 
-	return countPerThread * _threadId;
+	return countPerId * id;
 }
 
-int PhysicsWorkerThread::GetEndIndex(unsigned count)
+int PhysicsWorkerThread::GetEndIndexForId(unsigned id, unsigned numIds, unsigned count)
 {
-	if (count <= _numThreads)
+	if (count <= numIds)
 	{
-		if (_threadId >= count)
+		if (id >= count)
 			return -1;
 
-		return _threadId;
+		return id;
 	}
 
-	if (_threadId == _numThreads - 1)
+	if (id == numIds - 1)
 		return count - 1;
 
-	unsigned countPerThread = count / _numThreads;
+	unsigned countPerId = count / numIds;
 
-	return countPerThread * _threadId + (countPerThread - 1);
+	return countPerId * id + (countPerId - 1);
+}
+
+int PhysicsWorkerThread::GetPeerStartIndex(unsigned count)
+{
+	int peerStart = GetStartIndexForId(_peerId, _numPeers, count);
+	int peerEnd = GetEndIndexForId(_peerId, _numPeers, count) + 1;
+
+	return peerStart + GetStartIndexForId(_threadId, _numThreads, peerEnd - peerStart);
+}
+
+int PhysicsWorkerThread::GetPeerEndIndex(unsigned count)
+{
+	int peerStart = GetStartIndexForId(_peerId, _numPeers, count);
+	int peerEnd = GetEndIndexForId(_peerId, _numPeers, count) + 1;
+
+	return peerStart + GetEndIndexForId(_threadId, _numThreads, peerEnd - peerStart);
 }
 
 GameWorldThread::GameWorldThread() :
@@ -221,19 +265,25 @@ void GameWorldThread::ExitWorkers()
 
 void GameWorldThread::PhysicsStep()
 {
-	_world->HandleUserInteraction();
+	if (_shuttingDown)
+	{
+		ExitWorkers();
+	}
 
 	// TODO: timer class
 	LARGE_INTEGER endTime;
 	QueryPerformanceCounter(&endTime);
 	
 	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
+
+	_world->HandleUserInteraction();
 	
 	SetStepDelta(delta);
 
-	if (_shuttingDown)
+	// Send and recieve the delta time for this tick
+	if (_state != STATE_STANDALONE)
 	{
-		ExitWorkers();
+		_networkController->BeginTick();
 	}
 
 	// Workers begin integration task
@@ -241,23 +291,33 @@ void GameWorldThread::PhysicsStep()
 	PhysicsWorkerThread::Integrate();
 	JoinIntegration();
 
+	// Send and receive integrated positions
+	if (_state != STATE_STANDALONE)
+	{
+		_networkController->PrepareForCollisions();
+	}
+
 	// Workers begin broadphase task
 	BeginBroadphase();
 	PhysicsWorkerThread::BroadPhase();
 	JoinBroadphase();
+
+	// Workers begin collision detect task
+	BeginDetectCollisions();
+	PhysicsWorkerThread::DetectCollisions();
+	JoinDetectCollisions();
 
 	// Workers begin collision solve task
 	BeginSolveCollisions();
 	PhysicsWorkerThread::SolveCollisions();
 	JoinSolveCollisions();
 
-	_world->SwapWriteState();
-	SanityCheckObjectsInBuckets();
-
 	if (_state != STATE_STANDALONE)
 	{
-		_networkController->DoTick();
+		_networkController->DoTickComplete();
 	}
+
+	_world->SwapWriteState();
 
 	_tickCount++; // Record the step for performance measurement
 
@@ -302,6 +362,11 @@ void GameWorldThread::SetStepDelta(double delta)
 	}
 }
 
+double GameWorldThread::GetStepDelta()
+{
+	return _delta;
+}
+
 void GameWorldThread::BeginIntegration()
 {
 	_integrationStage.Begin();
@@ -321,6 +386,17 @@ void GameWorldThread::BeginBroadphase()
 		_workers[i]->_broadPhaseStage.Begin();
 	}
 }
+
+void GameWorldThread::BeginDetectCollisions()
+{
+	_detectCollisionStage.Begin();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_detectCollisionStage.Begin();
+	}
+}
+
 
 void GameWorldThread::BeginSolveCollisions()
 {
@@ -349,6 +425,16 @@ void GameWorldThread::JoinBroadphase()
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->_broadPhaseStage.WaitForCompletion();
+	}
+}
+
+void GameWorldThread::JoinDetectCollisions()
+{
+	_detectCollisionStage.WaitForCompletion();
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->_detectCollisionStage.WaitForCompletion();
 	}
 }
 
@@ -400,5 +486,25 @@ void GameWorldThread::TerminateSession()
 		_state = STATE_STANDALONE;
 
 		std::cout << "Session terminated" << std::endl;
+	}
+}
+
+void GameWorldThread::SetPeerId(unsigned id)
+{
+	PhysicsWorkerThread::SetPeerId(id);
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->SetPeerId(id);
+	}
+}
+
+void GameWorldThread::SetNumPeers(unsigned numPeers)
+{
+	PhysicsWorkerThread::SetNumPeers(numPeers);
+
+	for (unsigned i = 0; i < _workers.size(); ++i)
+	{
+		_workers[i]->SetNumPeers(numPeers);
 	}
 }

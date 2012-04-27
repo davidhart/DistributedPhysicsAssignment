@@ -11,7 +11,7 @@ MyWindow::MyWindow() :
 	_prevKeyStateMinus(false)
 {
 	SetTitle("Simulation and Concurrency");
-	SetSize(1280, 768);
+	SetSize(800, 600);
 	SetDoubleBuffer(true);
 }
 

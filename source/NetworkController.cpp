@@ -30,13 +30,16 @@ SessionMasterController::~SessionMasterController()
 {
 }
 
-void SessionMasterController::DoTick()
+void SessionMasterController::DoTickComplete()
 {
 	Message message;
 
 	// If we have a client
 	if (_clientSocket.IsOpen())
 	{
+		// Sync objects positions after collision resolution
+		//SyncObjects(); need to sync objects in buckets :S
+
 		if (!_clientSocket.IsOpen())
 		{
 			std::cout << "Client timed out" << std::endl;
@@ -67,6 +70,120 @@ void SessionMasterController::DoTick()
 			SendSessionInitialization();
 		}
 	}
+
+	UpdatePeerId();
+}
+
+void SessionMasterController::BeginTick()
+{
+	// If we have a client
+	if (_clientSocket.IsOpen())
+	{
+		Message message;
+		message.Append(_worldThread.GetStepDelta());
+
+		// TODO: handle adding / removing objects?
+
+		_clientSocket.Send(message);
+	}
+
+	UpdatePeerId();
+}
+
+void SessionMasterController::PrepareForCollisions()
+{
+	if (_clientSocket.IsOpen())
+	{
+		// Sync objects integrated positions with peer
+		SyncObjects();
+	}
+
+	UpdatePeerId();
+}
+
+void SessionMasterController::SyncObjects()
+{
+	// Send objects state to peer
+	Message message;
+
+	int objectStride = sizeof(double)*4;
+	int serverStartIndex =  PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumObjects());
+	int serverEndIndex = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
+
+	for (int i = serverStartIndex; i <= serverEndIndex; ++i)
+	{
+		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+		{
+			_clientSocket.Send(message);
+			message.Clear();
+		}
+
+		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+
+		message.Append(object->GetPosition().x());
+		message.Append(object->GetPosition().y());
+		message.Append(object->GetVelocity().x());
+		message.Append(object->GetVelocity().y());
+	}
+
+	if (message.Size() != sizeof(unsigned short))
+	{
+		_clientSocket.Send(message);
+	}
+
+	// Recieve objects state from peer
+	int clientStartIndex = PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumObjects());
+	int clientEndIndex =  PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumObjects());
+	message.Clear();
+	while(clientStartIndex <= clientEndIndex && _clientSocket.IsOpen())
+	{						
+		double x, y; // Position
+		double vx, vy; // Velocity
+
+		// If reading an object failed try to read a new packet
+		if (!message.Read(x))
+		{
+			// If reading a packet failed (timeout) then the connection
+			// could not complete so exit and the socket should have closed
+			_clientSocket.Receive(message);
+		}
+		// Reading object type was successul so continue to read remainder of object
+		else
+		{
+			bool valid = true;
+
+			valid &= message.Read(y);
+			valid &= message.Read(vx);
+			valid &= message.Read(vy);
+
+			if(!valid)
+			{
+				_clientSocket.Close();
+				break;
+			}
+
+			Physics::PhysicsObject* object = _worldThread._world->GetObject(clientStartIndex);
+
+			object->SetPosition(Vector2d(x, y));
+			object->SetVelocity(Vector2d(vx, vy));
+
+			clientStartIndex++;
+		}
+	}
+}
+
+void SessionMasterController::UpdatePeerId()
+{
+	if (_clientSocket.IsOpen())
+	{
+		_worldThread.SetPeerId(0);
+		_worldThread.SetNumPeers(2);
+	}
+	else
+	{
+		_worldThread.SetPeerId(0);
+		_worldThread.SetNumPeers(1);
+	}
 }
 
 void SessionMasterController::SendSessionInitialization()
@@ -76,7 +193,7 @@ void SessionMasterController::SendSessionInitialization()
 	int numObjects = _worldThread._world->GetNumObjects();
 	message.Append(numObjects);
 
-	int objectStride = sizeof(float) * 5 + sizeof(unsigned int) * 2;
+	int objectStride = sizeof(double) * 5 + sizeof(unsigned int) * 2;
 
 	for (int i = 0; i < numObjects; ++i)
 	{
@@ -93,12 +210,12 @@ void SessionMasterController::SendSessionInitialization()
 		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
 
 		message.Append(object->GetSerializationType());
-		message.Append((float)object->GetPosition().x());
-		message.Append((float)object->GetPosition().y());
-		message.Append((float)object->GetVelocity().x());
-		message.Append((float)object->GetVelocity().y());
+		message.Append(object->GetPosition().x());
+		message.Append(object->GetPosition().y());
+		message.Append(object->GetVelocity().x());
+		message.Append(object->GetVelocity().y());
 		message.Append(object->GetColor().To32BitColor());
-		message.Append((float)object->GetMass());
+		message.Append(object->GetMass());
 	}
 
 	if (message.Size() != sizeof(unsigned short))
@@ -122,7 +239,7 @@ WorkerController::~WorkerController()
 
 }
 
-void WorkerController::DoTick()
+void WorkerController::DoTickComplete()
 {
 	// If we are connected to the session master
 	if (_serverSocket.IsOpen())
@@ -132,6 +249,127 @@ void WorkerController::DoTick()
 	else
 	{
 		DoFindHostTick();
+	}
+
+	UpdatePeerId();
+}
+
+void WorkerController::BeginTick()
+{
+	// If we are connected to the session master
+	if (_serverSocket.IsOpen())
+	{
+		Message message;
+		
+		_serverSocket.Receive(message);
+
+		double delta;
+		if (!message.Read(delta))
+		{
+			_serverSocket.Close();
+		}
+
+		_worldThread.SetStepDelta(delta);
+	}
+
+	UpdatePeerId();
+}
+
+void WorkerController::PrepareForCollisions()
+{
+	// If we are connected to the session master
+	if (_serverSocket.IsOpen())
+	{
+		SyncObjects();
+	}
+
+	UpdatePeerId();
+}
+
+void WorkerController::SyncObjects()
+{
+	Message message;
+
+	// Recieve objects state from peer
+	int serverStartIndex = PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumObjects());
+	int serverEndIndex =  PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
+
+	while(serverStartIndex <= serverEndIndex && _serverSocket.IsOpen())
+	{						
+		double x, y; // Position
+		double vx, vy; // Velocity
+
+		// If reading an object failed try to read a new packet
+		if (!message.Read(x))
+		{
+			// If reading a packet failed (timeout) then the connection
+			// could not complete so exit and the socket should have closed
+			_serverSocket.Receive(message);
+		}
+		// Reading object type was successul so continue to read remainder of object
+		else
+		{
+			bool valid = true;
+
+			valid &= message.Read(y);
+			valid &= message.Read(vx);
+			valid &= message.Read(vy);
+
+			if(!valid)
+			{
+				_serverSocket.Close();
+				break;
+			}
+
+			Physics::PhysicsObject* object = _worldThread._world->GetObject(serverStartIndex);
+
+			object->SetPosition(Vector2d(x, y));
+			object->SetVelocity(Vector2d(x, y));
+
+			serverStartIndex++;
+		}
+	}
+
+	// Send objects state to peer
+	int objectStride = sizeof(double)*4;
+	int clientStartIndex =  PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumObjects());
+	int clientEndIndex = PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumObjects());
+	message.Clear();
+
+	for (int i = clientStartIndex; i <= clientEndIndex; ++i)
+	{
+		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+		{
+			_serverSocket.Send(message);
+			message.Clear();
+		}
+
+		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+
+		message.Append(object->GetPosition().x());
+		message.Append(object->GetPosition().y());
+		message.Append(object->GetVelocity().x());
+		message.Append(object->GetVelocity().y());
+	}
+
+	if (message.Size() != sizeof(unsigned short))
+	{
+		_serverSocket.Send(message);
+	}
+}
+
+
+void WorkerController::UpdatePeerId()
+{
+	if (_serverSocket.IsOpen())
+	{
+		_worldThread.SetPeerId(1);
+		_worldThread.SetNumPeers(2);
+	}
+	else
+	{
+		_worldThread.SetPeerId(0);
+		_worldThread.SetNumPeers(1);
 	}
 }
 
@@ -221,10 +459,10 @@ void WorkerController::ReceiveInitialisationData()
 		// Reading object type was successul so continue to read remainder of object
 		else
 		{
-			float x, y; // Position
-			float vx, vy; // Velocity
+			double x, y; // Position
+			double vx, vy; // Velocity
 			unsigned int color; // 32bit ABGR color
-			float mass;
+			double mass;
 
 			bool valid = true;
 
@@ -246,9 +484,9 @@ void WorkerController::ReceiveInitialisationData()
 				std::cout << "???" << std::endl;
 			}
 
-			object->SetPosition(Vector2d((double)x, (double)y));
-			object->SetVelocity(Vector2d((double)x, (double)y));
-			object->SetMass((double)mass);
+			object->SetPosition(Vector2d(x, y));
+			object->SetVelocity(Vector2d(x, y));
+			object->SetMass(mass);
 			object->SetColor(Color(color));
 
 			numObjectsRead++;

@@ -10,8 +10,10 @@ class NetworkController
 public:
 
 	virtual ~NetworkController();
-	virtual void DoTick() = 0;
 
+	virtual void DoTickComplete() = 0;
+	virtual void BeginTick() = 0;
+	virtual void PrepareForCollisions() = 0;
 
 	static const unsigned short BROADCAST_PORT = 7777;
 	static const unsigned short TCPLISTEN_PORT = 1234;
@@ -29,10 +31,14 @@ public:
 	SessionMasterController(GameWorldThread& worldThread);
 	~SessionMasterController();
 
-	void DoTick();
+	void DoTickComplete();
+	void BeginTick();
+	void PrepareForCollisions();
 
 private:
 
+	void SyncObjects();
+	void UpdatePeerId();
 	void SendSessionInitialization();
 
 	Networking::UdpSocket _broadcastListenSocket;
@@ -51,10 +57,15 @@ public:
 
 	WorkerController(GameWorldThread& worldThread);
 	~WorkerController();
-	void DoTick();
+
+	void DoTickComplete();
+	void BeginTick();
+	void PrepareForCollisions();
 
 private:
 
+	void SyncObjects();
+	void UpdatePeerId();
 	void DoConnectedTick();
 	void DoFindHostTick();
 	void ReceiveInitialisationData();

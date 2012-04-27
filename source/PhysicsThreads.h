@@ -38,8 +38,14 @@ public:
 	void SetThreadId(unsigned id);
 	void SetNumThreads(unsigned numThreads);
 
-	int GetStartIndex(unsigned count);
-	int GetEndIndex(unsigned count);
+	int GetPeerStartIndex(unsigned count);
+	int GetPeerEndIndex(unsigned count);
+
+	void SetPeerId(unsigned id);
+	virtual void SetNumPeers(unsigned numPeers);
+
+	static int GetStartIndexForId(unsigned id, unsigned numIds, unsigned count);
+	static int GetEndIndexForId(unsigned id, unsigned numIds, unsigned count);
 
 protected:
 
@@ -47,6 +53,7 @@ protected:
 	void Integrate();
 	void BroadPhase();
 	void SolveCollisions();
+	void DetectCollisions();
 	World* _world;
 
 private:
@@ -56,11 +63,15 @@ private:
 	unsigned _threadId;
 	unsigned _numThreads;
 
+	unsigned _peerId;
+	unsigned _numPeers;
+
 	volatile double _delta;
 	volatile bool _haltPhysics;
 
 	PhysicsStage _integrationStage;
 	PhysicsStage _broadPhaseStage;
+	PhysicsStage _detectCollisionStage;
 	PhysicsStage _solveCollisionStage;
 };
 
@@ -77,6 +88,7 @@ public:
 
 	void SetWorld(World* worldState);
 	void SetStepDelta(double delta);
+	double GetStepDelta();
 
 	void BeginThreads();
 
@@ -91,16 +103,21 @@ public:
 	void JoinSession();
 	void TerminateSession();
 
+	void SetPeerId(unsigned id);
+	void SetNumPeers(unsigned numPeers);
+
 private:
 
 	void ExitWorkers();
 
 	void BeginIntegration();
 	void BeginBroadphase();
+	void BeginDetectCollisions();
 	void BeginSolveCollisions();
 
 	void JoinIntegration();
 	void JoinBroadphase();
+	void JoinDetectCollisions();
 	void JoinSolveCollisions();
 
 	void PhysicsStep();

@@ -49,6 +49,7 @@ public:
 		return _objectBuckets[GetBucketIndex(Vector2i(x, y))].size();
 	}
 
+	void DetectCollisions(int bucketXMin, int bucketXMax);
 	void SolveCollisions(int bucketXMin, int bucketXMax);
 
 	void HandleUserInteraction();
@@ -57,6 +58,7 @@ public:
 private:
 
 	void TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket);
+	void DetectCollisionsInBucket(const Vector2i& bucket);
 	void SolveCollisionsInBucket(const Vector2i& bucket);
 
 	Physics::PhysicsObject* FindObjectAtPoint(const Vector2d& point);

@@ -101,7 +101,6 @@ void World::Dispose()
 Physics::TriangleObject* World::AddTriangle()
 {
 	_buffers[_writeBuffer]._triangles.push_back(Triangle());
-	//_buffers[_freeBuffer]._triangles.push_back(Triangle());
 
 	Physics::TriangleObject* triangle = new Physics::TriangleObject(_buffers[_writeBuffer]._triangles.size() - 1);
 
@@ -113,7 +112,6 @@ Physics::TriangleObject* World::AddTriangle()
 Physics::BoxObject* World::AddBox()
 {
 	_buffers[_writeBuffer]._quads.push_back(Quad());
-	//_buffers[_freeBuffer]._quads.push_back(Quad());
 
 	Physics::BoxObject* box = new Physics::BoxObject(_buffers[_writeBuffer]._quads.size() - 1);
 
@@ -180,17 +178,24 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 
 void World::SolveCollisions(int bucketXMin, int bucketXMax)
 {
-	/*
-	for (int o = bucketXMin; o <= bucketXMax; o++)
-	{
-		_objects[o]->UpdateShape(*this);
-	}*/
 	Vector2i bucket;
 	for (bucket.x(bucketXMin); bucket.x() <= bucketXMax; bucket.x(bucket.x() + 1))
 	{
 		for (bucket.y(0); bucket.y() < GetNumBucketsTall(); bucket.y(bucket.y() + 1))
 		{
 			SolveCollisionsInBucket(bucket);
+		}
+	}
+}
+
+void World::DetectCollisions(int bucketXMin, int bucketXMax)
+{
+	Vector2i bucket;
+	for (bucket.x(bucketXMin); bucket.x() <= bucketXMax; bucket.x(bucket.x() + 1))
+	{
+		for (bucket.y(0); bucket.y() < GetNumBucketsTall(); bucket.y(bucket.y() + 1))
+		{
+			DetectCollisionsInBucket(bucket);
 		}
 	}
 }
@@ -218,9 +223,8 @@ void World::TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket)
 	}
 }
 
-void World::SolveCollisionsInBucket(const Vector2i& bucket)
+void World::DetectCollisionsInBucket(const Vector2i& bucket)
 {
-	
 	Bucket& bucketObjects = _objectBuckets[GetBucketIndex(bucket)];
 	
 	Physics::Contact contact;
@@ -247,9 +251,15 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 				TestObjectsAgainstBucket(bucketObjects, bucket + Vector2i(x, y));
 		}
 	}
-	
+}
+
+void World::SolveCollisionsInBucket(const Vector2i& bucket)
+{
+	Bucket& bucketObjects = _objectBuckets[GetBucketIndex(bucket)];
+
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
 	{
+		bucketObjects[i]->SolveContacts();
 		bucketObjects[i]->UpdateShape(*this);
 	}
 }
@@ -400,11 +410,13 @@ void World::HandleUserInteraction()
 			object->AddConstraint(&_cursorSpring);
 			_objectTiedToCursor = object;
 		}
+		/*
 		else
 		{
 			Physics::PhysicsObject* object = AddBox();
 			object->SetPosition(_cursor);
 		}
+		*/
 	}
 
 	if (!_leftButton && _objectTiedToCursor != NULL)
