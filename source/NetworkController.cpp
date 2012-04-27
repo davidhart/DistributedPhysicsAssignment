@@ -38,7 +38,7 @@ void SessionMasterController::DoTickComplete()
 	if (_clientSocket.IsOpen())
 	{
 		// Sync objects positions after collision resolution
-		//SyncObjects(); need to sync objects in buckets :S
+		SyncCollisionObjects();
 
 		if (!_clientSocket.IsOpen())
 		{
@@ -95,13 +95,13 @@ void SessionMasterController::PrepareForCollisions()
 	if (_clientSocket.IsOpen())
 	{
 		// Sync objects integrated positions with peer
-		SyncObjects();
+		SyncIntegratedObjects();
 	}
 
 	UpdatePeerId();
 }
 
-void SessionMasterController::SyncObjects()
+void SessionMasterController::SyncIntegratedObjects()
 {
 	// Send objects state to peer
 	Message message;
@@ -170,6 +170,119 @@ void SessionMasterController::SyncObjects()
 			clientStartIndex++;
 		}
 	}
+}
+
+void SessionMasterController::SyncCollisionObjects()
+{
+	const unsigned objectStride = sizeof(unsigned) + sizeof(double) * 4;
+
+	// Calculate the number of objects in buckets this peer is responsible for
+	// TODO: extract into method or cache somewhere
+	unsigned numObjectsToSend = 0;
+
+	int xMin = PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumBucketsWide());
+	int xMax = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumBucketsWide());
+	int yMax = _worldThread._world->GetNumBucketsTall();
+
+	for (int x = xMin; x <= xMax; ++x)
+	{
+		for (int y = 0; y < yMax; ++y)
+		{
+			numObjectsToSend += _worldThread._world->GetNumObjectsInBucket(x, y);
+		}
+	}
+
+	Message message;
+
+	message.Append(numObjectsToSend);
+	std::cout << "send " << numObjectsToSend << std::endl;
+	
+	// Send objects this peer is responsible for
+	for (int x = xMin; x <= xMax; ++x)
+	{
+		for (int y = 0; y < yMax; ++y)
+		{
+			const std::vector<unsigned>& bucket = _worldThread._world->GetObjectsInBucket(x, y);
+
+			for (unsigned i = 0; i < bucket.size(); ++i)
+			{
+				if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+				{
+					_clientSocket.Send(message);
+					message.Clear();
+				}
+
+				Physics::PhysicsObject* object = _worldThread._world->GetObject(bucket[i]);
+
+				message.Append(bucket[i]);
+				message.Append(object->GetPosition().x());
+				message.Append(object->GetPosition().y());
+				message.Append(object->GetVelocity().x());
+				message.Append(object->GetVelocity().y());
+			}
+		}
+	}
+
+	if (message.Size() != sizeof(unsigned short))
+	{
+		_clientSocket.Send(message);
+	}
+
+	message.Clear();
+
+	// Receive and update objects that collided on the server
+	_clientSocket.Receive(message);
+
+	unsigned numObjectsToReceive;
+
+	if (!message.Read(numObjectsToReceive))
+	{
+		_clientSocket.Close();
+		return;
+	}
+
+	// Sanity check
+	assert(numObjectsToReceive <= _worldThread._world->GetNumObjects());
+	std::cout << "recv " << numObjectsToReceive << std::endl;
+
+	unsigned received = 0;
+
+	while (_clientSocket.IsOpen() && received < numObjectsToReceive)
+	{
+		unsigned objectId;
+		if (!message.Read(objectId))
+		{
+			_clientSocket.Receive(message);
+		}
+		else
+		{
+			double x, y, vx, vy;
+			
+			bool valid = true;
+
+			valid &= message.Read(x);
+			valid &= message.Read(y);
+			valid &= message.Read(vx);
+			valid &= message.Read(vy);
+
+			if (!valid)
+			{
+				_clientSocket.Close();
+				return;
+			}
+			else
+			{
+				Physics::PhysicsObject* object = _worldThread._world->GetObject(objectId);
+
+				object->SetPosition(Vector2d(x, y));
+				object->SetVelocity(Vector2d(vx, vy));
+
+				object->UpdateShape(*_worldThread._world);
+				received++;
+			}
+		}
+	}
+
 }
 
 void SessionMasterController::UpdatePeerId()
@@ -280,19 +393,19 @@ void WorkerController::PrepareForCollisions()
 	// If we are connected to the session master
 	if (_serverSocket.IsOpen())
 	{
-		SyncObjects();
+		SyncIntegratedObjects();
 	}
 
 	UpdatePeerId();
 }
 
-void WorkerController::SyncObjects()
+void WorkerController::SyncIntegratedObjects()
 {
 	Message message;
 
 	// Recieve objects state from peer
 	int serverStartIndex = PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumObjects());
-	int serverEndIndex =  PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
+	int serverEndIndex = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
 
 	while(serverStartIndex <= serverEndIndex && _serverSocket.IsOpen())
 	{						
@@ -358,6 +471,119 @@ void WorkerController::SyncObjects()
 	}
 }
 
+void WorkerController::SyncCollisionObjects()
+{
+	const unsigned objectStride = sizeof(unsigned) + sizeof(double) * 4;
+
+	// Calculate the number of objects in buckets this peer is responsible for
+	// TODO: extract into method or cache somewhere
+	unsigned numObjectsToSend = 0;
+
+	int xMin = PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumBucketsWide());
+	int xMax = PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumBucketsWide());
+	int yMax = _worldThread._world->GetNumBucketsTall();
+
+	for (int x = xMin; x <= xMax; ++x)
+	{
+		for (int y = 0; y < yMax; ++y)
+		{
+			numObjectsToSend += _worldThread._world->GetNumObjectsInBucket(x, y);
+		}
+	}
+
+	Message message;
+
+	_serverSocket.Receive(message);
+
+	unsigned numObjectsToReceive;
+
+	if (!message.Read(numObjectsToReceive))
+	{
+		_serverSocket.Close();
+		return;
+	}
+
+	std::cout << "recv " << numObjectsToReceive << std::endl;
+
+	// Sanity check
+	assert(numObjectsToReceive <= _worldThread._world->GetNumObjects());
+
+	unsigned received = 0;
+
+	// Receive and update objects that collided on the server
+	while (_serverSocket.IsOpen() && received < numObjectsToReceive)
+	{
+		unsigned objectId;
+		if (!message.Read(objectId))
+		{
+			_serverSocket.Receive(message);
+		}
+		else
+		{
+			double x, y, vx, vy;
+			
+			bool valid = true;
+
+			valid &= message.Read(x);
+			valid &= message.Read(y);
+			valid &= message.Read(vx);
+			valid &= message.Read(vy);
+
+			if (!valid)
+			{
+				_serverSocket.Close();
+				return;
+			}
+			else
+			{
+				Physics::PhysicsObject* object = _worldThread._world->GetObject(objectId);
+
+				object->SetPosition(Vector2d(x, y));
+				object->SetVelocity(Vector2d(vx, vy));
+
+				object->UpdateShape(*_worldThread._world);
+				received++;
+			}
+		}
+	}
+
+	message.Clear();
+
+	message.Append(numObjectsToSend);
+
+	std::cout << "send " << numObjectsToSend << std::endl;
+
+	// Send objects this peer is responsible for
+	for (int x = xMin; x <= xMax; ++x)
+	{
+		for (int y = 0; y < yMax; ++y)
+		{
+			const std::vector<unsigned>& bucket = _worldThread._world->GetObjectsInBucket(x, y);
+
+			for (unsigned i = 0; i < bucket.size(); ++i)
+			{
+				if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+				{
+					_serverSocket.Send(message);
+					message.Clear();
+				}
+
+				Physics::PhysicsObject* object = _worldThread._world->GetObject(bucket[i]);
+
+				message.Append(bucket[i]);
+				message.Append(object->GetPosition().x());
+				message.Append(object->GetPosition().y());
+				message.Append(object->GetVelocity().x());
+				message.Append(object->GetVelocity().y());
+			}
+		}
+	}
+
+	if (message.Size() != sizeof(unsigned short))
+	{
+		_serverSocket.Send(message);
+	}
+}
 
 void WorkerController::UpdatePeerId()
 {
@@ -375,11 +601,12 @@ void WorkerController::UpdatePeerId()
 
 void WorkerController::DoConnectedTick()
 {
+	SyncCollisionObjects();
+
 	if (!_serverSocket.IsOpen())
 	{
 		std::cout << "Server timed out" << std::endl;
 		_serverSocket.Close();
-		// Revert to standalone mode??
 	}
 }
 

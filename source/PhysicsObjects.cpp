@@ -11,8 +11,6 @@ void Contact::Reverse()
 {
 	_contactNormal = -_contactNormal;
 	_relativeVelocity = -_relativeVelocity;
-
-	std::swap(_objectA, _objectB);
 }
 
 FixedEndSpringConstraint::FixedEndSpringConstraint() :

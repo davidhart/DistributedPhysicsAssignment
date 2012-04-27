@@ -21,9 +21,6 @@ namespace Physics
 		double _totalMass;
 		bool _static;
 
-		void* _objectA;
-		void* _objectB;
-
 		void Reverse();
 	};
 

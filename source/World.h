@@ -9,7 +9,7 @@
 
 class World
 {
-	typedef std::vector<Physics::PhysicsObject*> Bucket;
+	typedef std::vector<unsigned> Bucket;
 
 public:
 
@@ -54,6 +54,8 @@ public:
 
 	void HandleUserInteraction();
 	void UpdateMouseInput(const Vector2d& cursor, bool leftButton, bool rightButton);
+
+	const std::vector<unsigned>& GetObjectsInBucket(int x, int y);
 
 private:
 

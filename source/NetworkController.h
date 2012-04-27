@@ -37,7 +37,8 @@ public:
 
 private:
 
-	void SyncObjects();
+	void SyncIntegratedObjects();
+	void SyncCollisionObjects();
 	void UpdatePeerId();
 	void SendSessionInitialization();
 
@@ -64,7 +65,8 @@ public:
 
 private:
 
-	void SyncObjects();
+	void SyncIntegratedObjects();
+	void SyncCollisionObjects();
 	void UpdatePeerId();
 	void DoConnectedTick();
 	void DoFindHostTick();

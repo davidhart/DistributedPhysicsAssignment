@@ -171,7 +171,7 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 			assert(bucket.x() >= bucketXMin);
 			assert(bucket.x() <= bucketXMax);
 
-			_objectBuckets[GetBucketIndex(bucket)].push_back(_objects[i]);
+			_objectBuckets[GetBucketIndex(bucket)].push_back(i);
 		}
 	}
 }
@@ -215,9 +215,11 @@ void World::TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket)
 	{
 		for (unsigned j = 0; j < testBucket.size(); ++j)
 		{
-			if (objects[i]->TestCollision(*testBucket[j], contact))
+			Physics::PhysicsObject* object = _objects[objects[i]];
+
+			if (object->TestCollision(*_objects[testBucket[j]], contact))
 			{
-				objects[i]->AddContact(contact);
+				object->AddContact(contact);
 			}
 		}
 	}
@@ -233,12 +235,15 @@ void World::DetectCollisionsInBucket(const Vector2i& bucket)
 	{
 		for (unsigned j = i + 1; j < bucketObjects.size(); ++j)
 		{
-			if (bucketObjects[i]->TestCollision(*bucketObjects[j], contact))
+			Physics::PhysicsObject* objectA = _objects[bucketObjects[i]];
+			Physics::PhysicsObject* objectB = _objects[bucketObjects[j]];
+
+			if (objectA->TestCollision(*objectB, contact))
 			{
-				bucketObjects[i]->AddContact(contact);
+				objectA->AddContact(contact);
 
 				contact.Reverse();
-				bucketObjects[j]->AddContact(contact);
+				objectB->AddContact(contact);
 			}
 		}
 	}
@@ -259,8 +264,9 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 
 	for (unsigned i = 0; i < bucketObjects.size(); ++i)
 	{
-		bucketObjects[i]->SolveContacts();
-		bucketObjects[i]->UpdateShape(*this);
+		Physics::PhysicsObject* object = _objects[bucketObjects[i]];
+		object->SolveContacts();
+		object->UpdateShape(*this);
 	}
 }
 
@@ -462,16 +468,23 @@ Physics::PhysicsObject* World::FindObjectAtPointInBucket(const Vector2d& point, 
 	for (unsigned i = 0; i < objects.size(); ++i)
 	{
 		// TODO: intersection test method in physics object
-		Vector2d position = objects[i]->GetPosition();
+		Physics::PhysicsObject* object = _objects[objects[i]];
+
+		Vector2d position = object->GetPosition();
 
 		if (point.x() < position.x() + 0.5 &&
 			point.x() > position.x() - 0.5 &&
 			point.y() < position.y() + 0.5 &&
 			point.y() > position.y() - 0.5)
 		{
-			return objects[i];
+			return object;
 		}
 	}
 
 	return NULL;
+}
+
+const std::vector<unsigned>& World::GetObjectsInBucket(int x, int y)
+{
+	return _objectBuckets[ GetBucketIndex( Vector2i(x, y) ) ];
 }
