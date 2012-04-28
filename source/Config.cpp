@@ -11,7 +11,7 @@ Config::Config()
 
 }
 
-bool Config::Read(const char* filename, Application& application)
+bool Config::Read(const char* filename, Application&)
 {
 	std::ifstream file(filename);
 

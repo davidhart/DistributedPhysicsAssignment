@@ -195,7 +195,6 @@ void SessionMasterController::SyncCollisionObjects()
 	Message message;
 
 	message.Append(numObjectsToSend);
-	std::cout << "send " << numObjectsToSend << std::endl;
 	
 	// Send objects this peer is responsible for
 	for (int x = xMin; x <= xMax; ++x)
@@ -242,8 +241,7 @@ void SessionMasterController::SyncCollisionObjects()
 	}
 
 	// Sanity check
-	assert(numObjectsToReceive <= _worldThread._world->GetNumObjects());
-	std::cout << "recv " << numObjectsToReceive << std::endl;
+	assert((int)numObjectsToReceive <= _worldThread._world->GetNumObjects());
 
 	unsigned received = 0;
 
@@ -437,7 +435,7 @@ void WorkerController::SyncIntegratedObjects()
 			Physics::PhysicsObject* object = _worldThread._world->GetObject(serverStartIndex);
 
 			object->SetPosition(Vector2d(x, y));
-			object->SetVelocity(Vector2d(x, y));
+			object->SetVelocity(Vector2d(vx, vy));
 
 			serverStartIndex++;
 		}
@@ -503,10 +501,8 @@ void WorkerController::SyncCollisionObjects()
 		return;
 	}
 
-	std::cout << "recv " << numObjectsToReceive << std::endl;
-
 	// Sanity check
-	assert(numObjectsToReceive <= _worldThread._world->GetNumObjects());
+	assert((int)numObjectsToReceive <= _worldThread._world->GetNumObjects());
 
 	unsigned received = 0;
 
@@ -550,8 +546,6 @@ void WorkerController::SyncCollisionObjects()
 	message.Clear();
 
 	message.Append(numObjectsToSend);
-
-	std::cout << "send " << numObjectsToSend << std::endl;
 
 	// Send objects this peer is responsible for
 	for (int x = xMin; x <= xMax; ++x)

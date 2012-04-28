@@ -55,7 +55,7 @@ bool Message::Read(void* data, unsigned size)
 	}
 
 	memcpy_s(data, size, _buffer+_readLocation, size);
-	_readLocation += size;
+	_readLocation += (unsigned short)size;
 
 	return true;
 }
@@ -271,7 +271,7 @@ bool TcpSocket::Receive(Message& message)
 	}
 
 	// Read at least one whole message
-	while(true)
+	while(IsOpen())
 	{
 		unsigned expectedSize = Message::MAX_BUFFER_SIZE;
 
@@ -315,6 +315,8 @@ bool TcpSocket::Receive(Message& message)
 
 		_bytesRead += r;
 	}
+
+	return false;
 }
 
 void TcpSocket::SetTimeout(unsigned int milliseconds)

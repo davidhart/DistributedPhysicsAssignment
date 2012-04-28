@@ -69,22 +69,22 @@ void World::Create(const Renderer* renderer)
 	_worldBoundaryLines[3] = l;
 
 	l._color = Color(0.5f, 0.5f, 0.5f, 1.0f);
-	l._points[0].y(_worldMin.y());
-	l._points[1].y(_worldMax.y());
+	l._points[0].y((float)_worldMin.y());
+	l._points[1].y((float)_worldMax.y());
 
 	for (int i = 1; i < GetNumBucketsWide(); ++i)
 	{
-		l._points[0].x(GetBucketMin(i, 0).x());
+		l._points[0].x((float)GetBucketMin(i, 0).x());
 		l._points[1].x(l._points[0].x());
 		_worldBoundaryLines[4 + i - 1] = l;
 	}
 
-	l._points[0].x(_worldMin.x());
-	l._points[1].x(_worldMax.x());
+	l._points[0].x((float)_worldMin.x());
+	l._points[1].x((float)_worldMax.x());
 
 	for (int i = 1; i < GetNumBucketsTall(); ++i)
 	{
-		l._points[0].y(GetBucketMin(0, i).y());
+		l._points[0].y((float)GetBucketMin(0, i).y());
 		l._points[1].y(l._points[0].y());
 		_worldBoundaryLines[4 + GetNumBucketsWide() + i - 2] = l;
 	}
@@ -444,7 +444,7 @@ void World::UpdateMouseInput(const Vector2d& cursorPosition, bool leftButton, bo
 
 Physics::PhysicsObject* World::FindObjectAtPoint(const Vector2d& point)
 {
-	Vector2i& bucketCoord = GetBucketForPoint(point);
+	Vector2i bucketCoord = GetBucketForPoint(point);
 	Physics::PhysicsObject* object = NULL;
 
 	for (int x = Util::Max(bucketCoord.x() - 1, 0); x < bucketCoord.x() + 2 && x < GetNumBucketsWide(); x++)

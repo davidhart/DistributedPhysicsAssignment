@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Networking.h"
+#include "Uncopyable.h"
 
 class GameWorldThread;
 
-class NetworkController
+class NetworkController : public Uncopyable
 {
 	
 public:
