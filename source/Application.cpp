@@ -23,9 +23,9 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer);
 
-	for (int x = 0; x < 10; x++)
+	for (int x = 0; x < 1; x++)
 	{
-		for (int y = 0; y < 3; y++)
+		for (int y = 0; y < 1; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x*1.2)-15, y*1.1+1));

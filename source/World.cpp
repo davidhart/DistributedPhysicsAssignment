@@ -266,7 +266,7 @@ void World::SolveCollisionsInBucket(const Vector2i& bucket)
 	{
 		Physics::PhysicsObject* object = _objects[bucketObjects[i]];
 		object->SolveContacts();
-		object->UpdateShape(*this);
+		//object->UpdateShape(*this);
 	}
 }
 

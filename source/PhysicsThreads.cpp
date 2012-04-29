@@ -65,6 +65,8 @@ void PhysicsWorkerThread::PhysicsStep()
 
 	BroadPhase();
 
+	DetectCollisions();
+
 	SolveCollisions();
 }
 
@@ -75,8 +77,8 @@ void PhysicsWorkerThread::Integrate()
 	double delta = _delta;
 
 	// Integrate the objects we are responsible for
-	int minIndex = GetPeerStartIndex(_world->GetNumObjects());
-	int maxIndex = GetPeerEndIndex(_world->GetNumObjects());
+	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumObjects());
+	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumObjects());
 
 	for (int i = minIndex; i <= maxIndex; i++)
 	{
@@ -121,6 +123,16 @@ void PhysicsWorkerThread::SolveCollisions()
 	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
 
 	_world->SolveCollisions(minIndex, maxIndex);
+	
+	// Update the shapes of every object
+	minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumObjects());
+	maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumObjects());
+
+	for (int i = minIndex; i <= maxIndex; ++i)
+	{
+		Physics::PhysicsObject* object = _world->GetObject(i);
+		object->UpdateShape(*_world);
+	}
 
 	_solveCollisionStage.Completed();
 }
@@ -280,22 +292,10 @@ void GameWorldThread::PhysicsStep()
 	
 	SetStepDelta(delta);
 
-	// Send and recieve the delta time for this tick
-	if (_state != STATE_STANDALONE)
-	{
-		_networkController->BeginTick();
-	}
-
 	// Workers begin integration task
 	BeginIntegration();
 	PhysicsWorkerThread::Integrate();
 	JoinIntegration();
-
-	// Send and receive integrated positions
-	if (_state != STATE_STANDALONE)
-	{
-		_networkController->PrepareForCollisions();
-	}
 
 	// Workers begin broadphase task
 	BeginBroadphase();
@@ -314,7 +314,7 @@ void GameWorldThread::PhysicsStep()
 
 	if (_state != STATE_STANDALONE)
 	{
-		_networkController->DoTickComplete();
+		_networkController->ExchangeState();
 	}
 
 	_world->SwapWriteState();
@@ -456,6 +456,7 @@ void GameWorldThread::CreateSession()
 	{
 		_networkController = new SessionMasterController(*this);
 		_state = STATE_SESSIONMASTER;
+		_networkController->Start();
 
 		std::cout << "Creating session" << std::endl;
 	}
@@ -469,6 +470,7 @@ void GameWorldThread::JoinSession()
 	{
 		_networkController = new WorkerController(*this);
 		_state = STATE_SESSIONWORKER;
+		_networkController->Start();
 
 		std::cout << "Attempting to find session" << std::endl;
 	}

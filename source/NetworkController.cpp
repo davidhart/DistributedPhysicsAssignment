@@ -8,14 +8,40 @@ using namespace Networking;
 const std::string NetworkController::BROADCAST_STRING("Is anyone there?");
 const std::string NetworkController::BROADCAST_REPLY_STRING("Yes I am here");
 
-NetworkController::~NetworkController()
+NetworkController::NetworkController() :
+	_shutDown(false)
 {
 
 }
 
+NetworkController::~NetworkController()
+{
+	Shutdown();
+	Join();
+}
+
+unsigned NetworkController::ThreadMain()
+{
+	while(!_shutDown)
+	{
+		// TODO: implement timer to control tickrate & timeouts
+		DoTick();
+
+		Sleep(1);
+	}
+
+	return 0;
+}
+
+void NetworkController::Shutdown()
+{
+	_shutDown = true;
+}
+
 SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
 	_tcpListenSocket(TCPLISTEN_PORT),
-	_worldThread(worldThread)
+	_worldThread(worldThread),
+	_state(LISTENING_CLIENT)
 {
 	_broadcastListenSocket.Bind(BROADCAST_PORT);
 	_broadcastListenSocket.SetBlocking(false);
@@ -26,261 +52,191 @@ SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
 	_broadcastReplyMessage.Append(TCPLISTEN_PORT);
 }
 
-SessionMasterController::~SessionMasterController()
+void SessionMasterController::ExchangeState()
 {
-}
+	Threading::ScopedLock lock(_exchangeMutex);
 
-void SessionMasterController::DoTickComplete()
-{
-	Message message;
-
-	// If we have a client
-	if (_clientSocket.IsOpen())
+	// Make a copy of the world state to send to the client
+	if (_state == WAIT_ON_INITIALISATION_GATHER)
 	{
-		// Sync objects positions after collision resolution
-		SyncCollisionObjects();
+		unsigned numObjects = _worldThread._world->GetNumObjects();
+		_initialisationData._messagesSent = 0;
+		const int objectStride = sizeof(unsigned) * 2 + sizeof(double) * 5;
 
-		if (!_clientSocket.IsOpen())
-		{
-			std::cout << "Client timed out" << std::endl;
-			_clientSocket.Close();
-		}
-	}
-	else
-	{
-		Address address;
-
-		// Reply to broadcasts
-		while(_broadcastListenSocket.RecieveFrom(address, message))
-		{
-			std::string broadcastString;
-			if (message.Read(broadcastString) && broadcastString == BROADCAST_STRING)
-			{
-				_broadcastListenSocket.SendTo(address, _broadcastReplyMessage);
-			}
-		}
-
-		// Accept an incoming connection request
-		if (_tcpListenSocket.Accept(_clientSocket, address))
-		{
-			std::cout << "Client Connected " << address << std::endl;
-			_clientSocket.SetBlocking(true);
-			_clientSocket.SetTimeout(5000);
-
-			SendSessionInitialization();
-		}
-	}
-
-	UpdatePeerId();
-}
-
-void SessionMasterController::BeginTick()
-{
-	// If we have a client
-	if (_clientSocket.IsOpen())
-	{
 		Message message;
-		message.Append(_worldThread.GetStepDelta());
+		message.Append(numObjects);
 
-		// TODO: handle adding / removing objects?
+		for (unsigned i = 0; i < numObjects; ++i)
+		{
+			// If another object can't fit into the message, add it onto the list
+			// and start building another message
+			if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+			{
+				_initialisationData._messages.push_back(message);
+				message.Clear();
+			}
 
-		_clientSocket.Send(message);
+			Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+
+			message.Append(object->GetSerializationType());
+			message.Append(object->GetPosition().x());
+			message.Append(object->GetPosition().y());
+			message.Append(object->GetVelocity().x());
+			message.Append(object->GetVelocity().y());
+			message.Append(object->GetColor().To32BitColor());
+			message.Append(object->GetMass());
+		}
+
+		if (message.Size() != sizeof(unsigned short))
+		{
+			_initialisationData._messages.push_back(message);
+		}
+
+		_sendData._messagesSent = 0;
+
+		_state = ACCEPTING_CLIENT;
+	}
+	// For now synchronise all objects
+	else if (_state == SYNCHRONISE_CLIENT)
+	{
+		_sendData._newState.clear();
+
+		unsigned numObjects = _worldThread._world->GetNumObjects();
+		const int objectStride = sizeof(unsigned) * 1 + sizeof(double) * 4;
+
+		Message message;
+		message.Append(numObjects);
+
+		for (unsigned i = 0; i < numObjects; ++i)
+		{
+			// If another object can't fit into the message, add it onto the list
+			// and start building another message
+			if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+			{
+				_sendData._newState.push_back(message);
+				message.Clear();
+			}
+
+			Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+
+			message.Append(i);
+			message.Append(object->GetPosition().x());
+			message.Append(object->GetPosition().y());
+			message.Append(object->GetVelocity().x());
+			message.Append(object->GetVelocity().y());
+		}
+
+		if (message.Size() != sizeof(unsigned short))
+		{
+			_sendData._newState.push_back(message);
+		}
+	}
+}
+
+void SessionMasterController::DoTick()
+{
+	// If something caused the client to disconnect, listen for a new client
+	if (_state != LISTENING_CLIENT && !_clientSocket.IsOpen())
+	{
+		std::cout << "revert to listen state" << std::endl;
+		_state = LISTENING_CLIENT;
+	}
+
+	switch(_state)
+	{
+	case LISTENING_CLIENT:
+		DoAcceptHostTick();
+		break;
+
+	case ACCEPTING_CLIENT:
+		SendSessionInitialization();
+		break;
+
+	case SYNCHRONISE_CLIENT:
+		DoPeerConnectedTick();
+		break;
 	}
 
 	UpdatePeerId();
 }
 
-void SessionMasterController::PrepareForCollisions()
+void SessionMasterController::DoAcceptHostTick()
 {
-	if (_clientSocket.IsOpen())
+	Message message;
+	Address address;
+
+	// Reply to broadcasts
+	while(_broadcastListenSocket.RecieveFrom(address, message))
 	{
-		// Sync objects integrated positions with peer
-		SyncIntegratedObjects();
+		std::string broadcastString;
+		if (message.Read(broadcastString) && broadcastString == BROADCAST_STRING)
+		{
+			_broadcastListenSocket.SendTo(address, _broadcastReplyMessage);
+		}
 	}
 
-	UpdatePeerId();
+	// Accept an incoming connection request
+	if (_tcpListenSocket.Accept(_clientSocket, address))
+	{
+		Threading::ScopedLock lock(_exchangeMutex);
+		std::cout << "Client Connected " << address << std::endl;
+		_clientSocket.SetBlocking(false);
+		_state = WAIT_ON_INITIALISATION_GATHER;
+	}
+
 }
 
-void SessionMasterController::SyncIntegratedObjects()
+void SessionMasterController::SendSessionInitialization()
 {
-	// Send objects state to peer
-	Message message;
-
-	int objectStride = sizeof(double)*4;
-	int serverStartIndex =  PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumObjects());
-	int serverEndIndex = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
-
-	for (int i = serverStartIndex; i <= serverEndIndex; ++i)
+	while (_initialisationData._messagesSent < _initialisationData._messages.size())
 	{
-		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+		// If sending would block, give up for now
+		if (!_clientSocket.Send(_initialisationData._messages[_initialisationData._messagesSent]))
 		{
-			_clientSocket.Send(message);
-			message.Clear();
+			return;
 		}
-
-		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
-
-		message.Append(object->GetPosition().x());
-		message.Append(object->GetPosition().y());
-		message.Append(object->GetVelocity().x());
-		message.Append(object->GetVelocity().y());
+		
+		 _initialisationData._messagesSent++;
 	}
 
-	if (message.Size() != sizeof(unsigned short))
+	// If initialisation complete
+	if (_initialisationData._messagesSent == _initialisationData._messages.size())
 	{
-		_clientSocket.Send(message);
-	}
-
-	// Recieve objects state from peer
-	int clientStartIndex = PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumObjects());
-	int clientEndIndex =  PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumObjects());
-	message.Clear();
-	while(clientStartIndex <= clientEndIndex && _clientSocket.IsOpen())
-	{						
-		double x, y; // Position
-		double vx, vy; // Velocity
-
-		// If reading an object failed try to read a new packet
-		if (!message.Read(x))
-		{
-			// If reading a packet failed (timeout) then the connection
-			// could not complete so exit and the socket should have closed
-			_clientSocket.Receive(message);
-		}
-		// Reading object type was successul so continue to read remainder of object
-		else
-		{
-			bool valid = true;
-
-			valid &= message.Read(y);
-			valid &= message.Read(vx);
-			valid &= message.Read(vy);
-
-			if(!valid)
-			{
-				_clientSocket.Close();
-				break;
-			}
-
-			Physics::PhysicsObject* object = _worldThread._world->GetObject(clientStartIndex);
-
-			object->SetPosition(Vector2d(x, y));
-			object->SetVelocity(Vector2d(vx, vy));
-
-			clientStartIndex++;
-		}
+		_initialisationData._messages.clear();
+		_state = SYNCHRONISE_CLIENT;
 	}
 }
 
-void SessionMasterController::SyncCollisionObjects()
+
+void SessionMasterController::DoPeerConnectedTick()
 {
-	const unsigned objectStride = sizeof(unsigned) + sizeof(double) * 4;
-
-	// Calculate the number of objects in buckets this peer is responsible for
-	// TODO: extract into method or cache somewhere
-	unsigned numObjectsToSend = 0;
-
-	int xMin = PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumBucketsWide());
-	int xMax = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumBucketsWide());
-	int yMax = _worldThread._world->GetNumBucketsTall();
-
-	for (int x = xMin; x <= xMax; ++x)
+	while (_sendData._messagesSent < _sendData._sendingState.size())
 	{
-		for (int y = 0; y < yMax; ++y)
+		// If sending would block, give up for now
+		if (!_clientSocket.Send(_sendData._sendingState[_sendData._messagesSent]))
 		{
-			numObjectsToSend += _worldThread._world->GetNumObjectsInBucket(x, y);
+			return;
 		}
+		
+		 _sendData._messagesSent++;
 	}
 
-	Message message;
-
-	message.Append(numObjectsToSend);
-	
-	// Send objects this peer is responsible for
-	for (int x = xMin; x <= xMax; ++x)
+	// If initialisation complete
+	if (_sendData._messagesSent == _sendData._sendingState.size())
 	{
-		for (int y = 0; y < yMax; ++y)
-		{
-			const std::vector<unsigned>& bucket = _worldThread._world->GetObjectsInBucket(x, y);
+		_sendData._messagesSent = 0;
 
-			for (unsigned i = 0; i < bucket.size(); ++i)
-			{
-				if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-				{
-					_clientSocket.Send(message);
-					message.Clear();
-				}
-
-				Physics::PhysicsObject* object = _worldThread._world->GetObject(bucket[i]);
-
-				message.Append(bucket[i]);
-				message.Append(object->GetPosition().x());
-				message.Append(object->GetPosition().y());
-				message.Append(object->GetVelocity().x());
-				message.Append(object->GetVelocity().y());
-			}
-		}
+		Threading::ScopedLock lock(_exchangeMutex);
+		
+		// Replace the most recent state with the one we just finished sending
+		_sendData._newState.swap(_sendData._sendingState);
 	}
 
-	if (message.Size() != sizeof(unsigned short))
+	if (!_clientSocket.IsOpen())
 	{
-		_clientSocket.Send(message);
-	}
-
-	message.Clear();
-
-	// Receive and update objects that collided on the server
-	_clientSocket.Receive(message);
-
-	unsigned numObjectsToReceive;
-
-	if (!message.Read(numObjectsToReceive))
-	{
+		std::cout << "Client timed out" << std::endl;
 		_clientSocket.Close();
-		return;
 	}
-
-	// Sanity check
-	assert((int)numObjectsToReceive <= _worldThread._world->GetNumObjects());
-
-	unsigned received = 0;
-
-	while (_clientSocket.IsOpen() && received < numObjectsToReceive)
-	{
-		unsigned objectId;
-		if (!message.Read(objectId))
-		{
-			_clientSocket.Receive(message);
-		}
-		else
-		{
-			double x, y, vx, vy;
-			
-			bool valid = true;
-
-			valid &= message.Read(x);
-			valid &= message.Read(y);
-			valid &= message.Read(vx);
-			valid &= message.Read(vy);
-
-			if (!valid)
-			{
-				_clientSocket.Close();
-				return;
-			}
-			else
-			{
-				Physics::PhysicsObject* object = _worldThread._world->GetObject(objectId);
-
-				object->SetPosition(Vector2d(x, y));
-				object->SetVelocity(Vector2d(vx, vy));
-
-				object->UpdateShape(*_worldThread._world);
-				received++;
-			}
-		}
-	}
-
 }
 
 void SessionMasterController::UpdatePeerId()
@@ -297,291 +253,45 @@ void SessionMasterController::UpdatePeerId()
 	}
 }
 
-void SessionMasterController::SendSessionInitialization()
-{
-	Message message;
-
-	int numObjects = _worldThread._world->GetNumObjects();
-	message.Append(numObjects);
-
-	int objectStride = sizeof(double) * 5 + sizeof(unsigned int) * 2;
-
-	for (int i = 0; i < numObjects; ++i)
-	{
-		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-		{
-			if (!_clientSocket.Send(message))
-			{
-				std::cout << "???" << std::endl;
-			}
-			std::cout << message.Size() << " " << i << std::endl;
-			message.Clear();
-		}
-		
-		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
-
-		message.Append(object->GetSerializationType());
-		message.Append(object->GetPosition().x());
-		message.Append(object->GetPosition().y());
-		message.Append(object->GetVelocity().x());
-		message.Append(object->GetVelocity().y());
-		message.Append(object->GetColor().To32BitColor());
-		message.Append(object->GetMass());
-	}
-
-	if (message.Size() != sizeof(unsigned short))
-	{
-		_clientSocket.Send(message);
-
-		std::cout << message.Size() << std::endl;
-	}
-}
-
 WorkerController::WorkerController(GameWorldThread& worldThread) :
-	_worldThread(worldThread)
+	_worldThread(worldThread),
+	_state(FINDING_HOST)
 {
 	_broadcastSocket.SetBlocking(false);
-
 	_broadcastMessage.Append(BROADCAST_STRING);
 }
 
-WorkerController::~WorkerController()
+void WorkerController::DoTick()
 {
-
-}
-
-void WorkerController::DoTickComplete()
-{
-	// If we are connected to the session master
-	if (_serverSocket.IsOpen())
+	// If something caused the socket to close, find a new host
+	if (_state != FINDING_HOST && !_serverSocket.IsOpen())
 	{
-		DoConnectedTick();
+		std::cout << "revert to find state" << std::endl;
+		_state = FINDING_HOST;
 	}
-	else
+
+	switch(_state)
 	{
+	case FINDING_HOST:
 		DoFindHostTick();
+		break;
+
+	case RECEIVING_INITIALISATION:
+		ReceiveInitialisationData();
+		break;
+
+	case SYNCHRONISE_CLIENT:
+		DoConnectedTick();
+		break;
+
 	}
 
 	UpdatePeerId();
-}
-
-void WorkerController::BeginTick()
-{
-	// If we are connected to the session master
-	if (_serverSocket.IsOpen())
-	{
-		Message message;
-		
-		_serverSocket.Receive(message);
-
-		double delta;
-		if (!message.Read(delta))
-		{
-			_serverSocket.Close();
-		}
-
-		_worldThread.SetStepDelta(delta);
-	}
-
-	UpdatePeerId();
-}
-
-void WorkerController::PrepareForCollisions()
-{
-	// If we are connected to the session master
-	if (_serverSocket.IsOpen())
-	{
-		SyncIntegratedObjects();
-	}
-
-	UpdatePeerId();
-}
-
-void WorkerController::SyncIntegratedObjects()
-{
-	Message message;
-
-	// Recieve objects state from peer
-	int serverStartIndex = PhysicsWorkerThread::GetStartIndexForId(0, 2, _worldThread._world->GetNumObjects());
-	int serverEndIndex = PhysicsWorkerThread::GetEndIndexForId(0, 2, _worldThread._world->GetNumObjects());
-
-	while(serverStartIndex <= serverEndIndex && _serverSocket.IsOpen())
-	{						
-		double x, y; // Position
-		double vx, vy; // Velocity
-
-		// If reading an object failed try to read a new packet
-		if (!message.Read(x))
-		{
-			// If reading a packet failed (timeout) then the connection
-			// could not complete so exit and the socket should have closed
-			_serverSocket.Receive(message);
-		}
-		// Reading object type was successul so continue to read remainder of object
-		else
-		{
-			bool valid = true;
-
-			valid &= message.Read(y);
-			valid &= message.Read(vx);
-			valid &= message.Read(vy);
-
-			if(!valid)
-			{
-				_serverSocket.Close();
-				break;
-			}
-
-			Physics::PhysicsObject* object = _worldThread._world->GetObject(serverStartIndex);
-
-			object->SetPosition(Vector2d(x, y));
-			object->SetVelocity(Vector2d(vx, vy));
-
-			serverStartIndex++;
-		}
-	}
-
-	// Send objects state to peer
-	int objectStride = sizeof(double)*4;
-	int clientStartIndex =  PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumObjects());
-	int clientEndIndex = PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumObjects());
-	message.Clear();
-
-	for (int i = clientStartIndex; i <= clientEndIndex; ++i)
-	{
-		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-		{
-			_serverSocket.Send(message);
-			message.Clear();
-		}
-
-		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
-
-		message.Append(object->GetPosition().x());
-		message.Append(object->GetPosition().y());
-		message.Append(object->GetVelocity().x());
-		message.Append(object->GetVelocity().y());
-	}
-
-	if (message.Size() != sizeof(unsigned short))
-	{
-		_serverSocket.Send(message);
-	}
-}
-
-void WorkerController::SyncCollisionObjects()
-{
-	const unsigned objectStride = sizeof(unsigned) + sizeof(double) * 4;
-
-	// Calculate the number of objects in buckets this peer is responsible for
-	// TODO: extract into method or cache somewhere
-	unsigned numObjectsToSend = 0;
-
-	int xMin = PhysicsWorkerThread::GetStartIndexForId(1, 2, _worldThread._world->GetNumBucketsWide());
-	int xMax = PhysicsWorkerThread::GetEndIndexForId(1, 2, _worldThread._world->GetNumBucketsWide());
-	int yMax = _worldThread._world->GetNumBucketsTall();
-
-	for (int x = xMin; x <= xMax; ++x)
-	{
-		for (int y = 0; y < yMax; ++y)
-		{
-			numObjectsToSend += _worldThread._world->GetNumObjectsInBucket(x, y);
-		}
-	}
-
-	Message message;
-
-	_serverSocket.Receive(message);
-
-	unsigned numObjectsToReceive;
-
-	if (!message.Read(numObjectsToReceive))
-	{
-		_serverSocket.Close();
-		return;
-	}
-
-	// Sanity check
-	assert((int)numObjectsToReceive <= _worldThread._world->GetNumObjects());
-
-	unsigned received = 0;
-
-	// Receive and update objects that collided on the server
-	while (_serverSocket.IsOpen() && received < numObjectsToReceive)
-	{
-		unsigned objectId;
-		if (!message.Read(objectId))
-		{
-			_serverSocket.Receive(message);
-		}
-		else
-		{
-			double x, y, vx, vy;
-			
-			bool valid = true;
-
-			valid &= message.Read(x);
-			valid &= message.Read(y);
-			valid &= message.Read(vx);
-			valid &= message.Read(vy);
-
-			if (!valid)
-			{
-				_serverSocket.Close();
-				return;
-			}
-			else
-			{
-				Physics::PhysicsObject* object = _worldThread._world->GetObject(objectId);
-
-				object->SetPosition(Vector2d(x, y));
-				object->SetVelocity(Vector2d(vx, vy));
-
-				object->UpdateShape(*_worldThread._world);
-				received++;
-			}
-		}
-	}
-
-	message.Clear();
-
-	message.Append(numObjectsToSend);
-
-	// Send objects this peer is responsible for
-	for (int x = xMin; x <= xMax; ++x)
-	{
-		for (int y = 0; y < yMax; ++y)
-		{
-			const std::vector<unsigned>& bucket = _worldThread._world->GetObjectsInBucket(x, y);
-
-			for (unsigned i = 0; i < bucket.size(); ++i)
-			{
-				if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-				{
-					_serverSocket.Send(message);
-					message.Clear();
-				}
-
-				Physics::PhysicsObject* object = _worldThread._world->GetObject(bucket[i]);
-
-				message.Append(bucket[i]);
-				message.Append(object->GetPosition().x());
-				message.Append(object->GetPosition().y());
-				message.Append(object->GetVelocity().x());
-				message.Append(object->GetVelocity().y());
-			}
-		}
-	}
-
-	if (message.Size() != sizeof(unsigned short))
-	{
-		_serverSocket.Send(message);
-	}
 }
 
 void WorkerController::UpdatePeerId()
 {
-	if (_serverSocket.IsOpen())
+	if (_state == SYNCHRONISE_CLIENT)
 	{
 		_worldThread.SetPeerId(1);
 		_worldThread.SetNumPeers(2);
@@ -595,7 +305,60 @@ void WorkerController::UpdatePeerId()
 
 void WorkerController::DoConnectedTick()
 {
-	SyncCollisionObjects();
+	// Store parts of frames as they arrive
+	Message message;
+
+	while (_serverSocket.Receive(message))
+	{
+		if (_updateData._objectsReceived.size() == 0)
+		{
+			unsigned numObjects = 0;
+			if (!message.Read(numObjects))
+			{
+				CloseConnection();
+				return;
+			}
+
+			_updateData._objectsReceived.resize(numObjects);
+			_updateData._objectsRead = 0;
+		}
+
+
+		while(_updateData._objectsRead < _updateData._objectsReceived.size())
+		{
+			ObjectState& object = _updateData._objectsReceived[_updateData._objectsRead];
+
+			// If message doesn't contain another id wait for next message
+			if (!message.Read(object.id))
+			{
+				break;
+			}
+
+			bool valid = true;
+			valid &= message.Read(object.x);
+			valid &= message.Read(object.y);
+			valid &= message.Read(object.vx);
+			valid &= message.Read(object.vy);
+
+			// If malformed object
+			if (!valid)
+			{
+				CloseConnection();
+				return;
+			}
+
+			_updateData._objectsRead++;
+		}
+
+		if (_updateData._objectsRead == _updateData._objectsReceived.size())
+		{
+			Threading::ScopedLock lock(_exchangeMutex);
+
+			_updateData._objectsReceived.swap(_updateData._objectsUpdate);
+			_updateData._objectsReceived.clear();
+			_updateData._objectsRead = 0;
+		}
+	}
 
 	if (!_serverSocket.IsOpen())
 	{
@@ -625,14 +388,14 @@ void WorkerController::DoFindHostTick()
 		// Attempt to connect
 		std::cout << "Attempting to connect to server " << serverAddress << std::endl;
 		_serverSocket = TcpSocket(serverAddress);
-
-		_serverSocket.SetTimeout(5000);
-
+		
 		if (_serverSocket.IsOpen())
 		{
+			Threading::ScopedLock lock(_exchangeMutex);
 			std::cout << "Connected, awaiting initialization data" << std::endl;
-
-			ReceiveInitialisationData();
+			_serverSocket.SetBlocking(false);
+			_initialisationData._objects.clear();
+			_state = RECEIVING_INITIALISATION;
 		}
 		else
 		{
@@ -643,74 +406,62 @@ void WorkerController::DoFindHostTick()
 
 void WorkerController::ReceiveInitialisationData()
 {
-	_worldThread._world->ClearObjects();
-
 	Message message;
-	if (!_serverSocket.Receive(message))
+	while (_serverSocket.Receive(message) && _serverSocket.IsOpen())
 	{
-		return;
-	}
-
-	int numObjects = 0;
-	int numObjectsRead = 0;
-
-	if (!message.Read(numObjects))
-	{
-		_serverSocket.Close();
-	}
-	
-	std::cout << "Recieving " << numObjects << " objects" << std::endl;
-
-	_worldThread._world->ClearObjects();
-
-	while(numObjectsRead < numObjects && _serverSocket.IsOpen())
-	{						
-		unsigned objectType = 0;
-
-		// If reading an object failed try to read a new packet
-		if (!message.Read(objectType))
+		if (_initialisationData._objects.size() == 0)
 		{
-			// If reading a packet failed (timeout) then the connection
-			// could not complete so exit and the socket should have closed
-			if (!_serverSocket.Receive(message))
-				return;
-
-			std::cout << message.Size() << std::endl;
-		}
-		// Reading object type was successul so continue to read remainder of object
-		else
-		{
-			double x, y; // Position
-			double vx, vy; // Velocity
-			unsigned int color; // 32bit ABGR color
-			double mass;
-
-			bool valid = true;
-
-			valid &= message.Read(x);
-			valid &= message.Read(y);
-			valid &= message.Read(vx);
-			valid &= message.Read(vy);
-			valid &= message.Read(color);
-			valid &= message.Read(mass);
-
-			Physics::PhysicsObject* object = NULL;
-			if (objectType == 0)
+			int objectsToRead;
+			if (!message.Read(objectsToRead))
 			{
-				object = _worldThread._world->AddBox();
+				CloseConnection();
+				return;
 			}
+			std::cout << "Recieving " << objectsToRead << " objects" << std::endl;
+			_initialisationData._objectsRead = 0;
+			_initialisationData._objects.resize(objectsToRead);
+		}
+
+		while(_initialisationData._objectsRead < _initialisationData._objects.size() 
+					&& _serverSocket.IsOpen())
+		{						
+			unsigned objectType = 0;
+
+			// If reading an object failed exit and wait for next message
+			if (!message.Read(objectType))
+			{
+				return;
+			}
+			// Reading object type was successul so continue to read remainder of object
 			else
 			{
-				// TODO: other object types
-				std::cout << "???" << std::endl;
+				bool valid = true;
+
+				ObjectInitialisation& objectInit = _initialisationData._objects[_initialisationData._objectsRead];
+
+				valid &= message.Read(objectInit.x);
+				valid &= message.Read(objectInit.y);
+				valid &= message.Read(objectInit.vx);
+				valid &= message.Read(objectInit.vy);
+				valid &= message.Read(objectInit.color);
+				valid &= message.Read(objectInit.mass);
+
+				if (!valid)
+				{
+					CloseConnection();
+					return;
+				}
+
+				_initialisationData._objectsRead++;
 			}
+		}
 
-			object->SetPosition(Vector2d(x, y));
-			object->SetVelocity(Vector2d(x, y));
-			object->SetMass(mass);
-			object->SetColor(Color(color));
-
-			numObjectsRead++;
+		// If initialisation complete
+		if (_initialisationData._objectsRead == _initialisationData._objects.size())
+		{
+			Threading::ScopedLock lock(_exchangeMutex);
+			_state = RECEIVED_INITIALISATION;		
+			return;
 		}
 	}
 }
@@ -730,4 +481,56 @@ bool WorkerController::ValidateBroadcastResponseAndGetPort(Networking::Message& 
 	}
 	
 	return false;
+}
+
+void WorkerController::CloseConnection()
+{
+	_serverSocket.Close();
+	_state = FINDING_HOST;
+}
+
+void WorkerController::ExchangeState()
+{
+	Threading::ScopedLock lock(_exchangeMutex);
+
+	if (_state == RECEIVED_INITIALISATION)
+	{
+		std::cout << "received " << _initialisationData._objects.size() << "objects " << std::endl;
+		_worldThread._world->ClearObjects();
+
+		for (unsigned i = 0; i < _initialisationData._objects.size(); ++i)
+		{
+			Physics::PhysicsObject* object = NULL;
+			const ObjectInitialisation& objectInit = _initialisationData._objects[i];
+
+			if (objectInit.objectType == 0)
+			{
+				object = _worldThread._world->AddBox();
+			}
+
+			object->SetPosition(Vector2d(objectInit.x, objectInit.y));
+			object->SetVelocity(Vector2d(objectInit.vx, objectInit.vy));
+			object->SetMass(objectInit.mass);
+			object->SetColor(Color(objectInit.color));
+			object->UpdateShape(*_worldThread._world);
+		}
+
+		_initialisationData._objects.clear();
+		_updateData._objectsRead = 0;
+		_state = SYNCHRONISE_CLIENT;
+	}
+	else if (_state == SYNCHRONISE_CLIENT)
+	{
+		for (unsigned i = 0; i < _updateData._objectsUpdate.size(); ++i)
+		{
+			const ObjectState& objectState = _updateData._objectsUpdate[i];
+			Physics::PhysicsObject* object = _worldThread._world->GetObject(objectState.id);
+
+			object->SetPosition(Vector2d(objectState.x, objectState.y));
+			object->SetVelocity(Vector2d(objectState.vx, objectState.vy));
+		}
+
+		// Clear these updates to be sure we don't apply them again
+		_updateData._objectsUpdate.clear();
+	}
 }
