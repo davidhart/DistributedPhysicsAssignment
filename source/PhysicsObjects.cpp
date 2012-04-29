@@ -143,7 +143,7 @@ void PhysicsObject::SolveContacts()
 			double VdotT = tangent.dot(contact._relativeVelocity) / GetMass();
 			_state._velocity -= tangent * VdotT * friction;
 		}
-
+		
 		// For collisions against fixed objects reflect the velocity
 		if (contact._static)
 		{
@@ -215,10 +215,26 @@ void BoxObject::UpdateShape(World& world)
 	quad._position = Vector2f(GetPosition());
 	quad._rotation = 0;
 
-	if (test != 1)
+	switch (world.GetColorMode())
+	{
+	case COLOR_OWNERSHIP:
+		quad._color = Color();
+		break;
+
+	case COLOR_MASS:
+		{
+			float m = 0.3f + 0.7f * ( 1.0f - (float)Util::Clamp(GetMass() / 5.0, 0.0, 1.0));
+			quad._color = Color(m, m, m, 1.0f);
+		}
+		break;
+
+	case COLOR_MOTION:
+		quad._color = Color();
+		break;
+
+	case COLOR_PROPERTY:
 		quad._color = GetColor();
-	else
-		quad._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+	}
 
 	world.UpdateQuad(_quad, quad);
 }

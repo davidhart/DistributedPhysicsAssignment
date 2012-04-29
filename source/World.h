@@ -7,6 +7,14 @@
 #include "Vector.h"
 #include "ShapeBatch.h"
 
+enum eColorMode
+{
+	COLOR_OWNERSHIP,
+	COLOR_MASS,
+	COLOR_MOTION,
+	COLOR_PROPERTY,
+};
+
 class World
 {
 	typedef std::vector<unsigned> Bucket;
@@ -56,6 +64,9 @@ public:
 	void UpdateMouseInput(const Vector2d& cursor, bool leftButton, bool rightButton);
 
 	const std::vector<unsigned>& GetObjectsInBucket(int x, int y);
+
+	void SetColorMode(eColorMode mode);
+	eColorMode GetColorMode();
 
 private:
 
@@ -113,4 +124,6 @@ private:
 
 	Physics::FixedEndSpringConstraint _cursorSpring;
 	Physics::PhysicsObject* _objectTiedToCursor;
+
+	eColorMode _colorMode;
 };

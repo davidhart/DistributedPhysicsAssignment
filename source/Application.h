@@ -44,6 +44,11 @@ public:
 	void JoinSession();
 	void TerminateSession();
 
+	void SetColorModeOwnership();
+	void SetColorModeMass();
+	void SetColorModeMotion();
+	void SetColorModeProperty();
+
 private:
 
 	void UpdateCamera(double delta);

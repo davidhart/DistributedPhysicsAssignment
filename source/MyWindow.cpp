@@ -128,6 +128,22 @@ void MyWindow::OnKeyboard(int key, bool down)
 	{
 		_application.TerminateSession();
 	}
+	else if ('1' == key)
+	{
+		_application.SetColorModeMass();
+	}
+	else if ('2' == key)
+	{
+		_application.SetColorModeMotion();
+	}
+	else if ('3' == key)
+	{
+		_application.SetColorModeOwnership();
+	}
+	else if ('4' == key)
+	{
+		_application.SetColorModeProperty();
+	}
 }
 
 void MyWindow::OnMouseMove(int x, int y)

@@ -106,8 +106,12 @@ void PhysicsWorkerThread::DetectCollisions()
 	_detectCollisionStage.WaitForBegin();
 
 	// Do narrowphase in the area this thread & peer is responsible for
+	/*
 	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
 	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
+	*/
+	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
+	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
 
 	_world->DetectCollisions(minIndex, maxIndex);
 
@@ -119,8 +123,12 @@ void PhysicsWorkerThread::SolveCollisions()
 	_solveCollisionStage.WaitForBegin();
 
 	// Solve collisions in the area this thread & peer is responsible for
+	/*
 	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
 	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
+	*/
+	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
+	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
 
 	_world->SolveCollisions(minIndex, maxIndex);
 	
@@ -290,7 +298,9 @@ void GameWorldThread::PhysicsStep()
 
 	_world->HandleUserInteraction();
 	
+	if (delta < 0) delta = 0;
 	SetStepDelta(delta);
+	
 
 	// Workers begin integration task
 	BeginIntegration();

@@ -37,7 +37,7 @@ namespace Networking
 		template <typename T> void Append(const T& value);
 		template <typename T> bool Read(T& value);
 
-		static const int MAX_BUFFER_SIZE = 2048;
+		static const int MAX_BUFFER_SIZE = 512;
 
 	private:
 

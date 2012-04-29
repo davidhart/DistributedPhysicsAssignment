@@ -7,7 +7,8 @@ World::World() :
 	_freeBuffer(2),
 	_worldMin(-20, 0),
 	_worldMax(20, 20),
-	_objectTiedToCursor(NULL)
+	_objectTiedToCursor(NULL),
+	_colorMode(COLOR_PROPERTY)
 {
 	_bucketSize = (_worldMax - _worldMin) / Vector2d(GetNumBucketsWide(), GetNumBucketsTall());
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
@@ -412,7 +413,6 @@ void World::HandleUserInteraction()
 		{
 			// TODO: Worldspace -> object space function
 			_cursorSpring.SetObjectSpaceAttachmentPoint(_cursor - object->GetPosition());
-			object->SetColor(Color(1.0f, 1.0f, 1.0f, 1.0f));
 			object->AddConstraint(&_cursorSpring);
 			_objectTiedToCursor = object;
 		}
@@ -487,4 +487,14 @@ Physics::PhysicsObject* World::FindObjectAtPointInBucket(const Vector2d& point, 
 const std::vector<unsigned>& World::GetObjectsInBucket(int x, int y)
 {
 	return _objectBuckets[ GetBucketIndex( Vector2i(x, y) ) ];
+}
+
+void World::SetColorMode(eColorMode mode)
+{
+	_colorMode = mode;
+}
+
+eColorMode World::GetColorMode()
+{
+	return _colorMode;
 }
