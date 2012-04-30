@@ -17,9 +17,11 @@ namespace Physics
 	{
 		Vector2d _contactNormal;
 		double _penetrationDistance;
-		Vector2d _relativeVelocity;
 		double _totalMass;
 		bool _static;
+
+		Vector2d _velocityA;
+		Vector2d _velocityB;
 
 		void Reverse();
 	};

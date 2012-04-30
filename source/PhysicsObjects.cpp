@@ -10,7 +10,7 @@ using namespace Physics;
 void Contact::Reverse()
 {
 	_contactNormal = -_contactNormal;
-	_relativeVelocity = -_relativeVelocity;
+	std::swap(_velocityA, _velocityB);
 }
 
 FixedEndSpringConstraint::FixedEndSpringConstraint() :
@@ -124,36 +124,63 @@ void PhysicsObject::SolveContacts()
 {
 	ProcessCollisions();
 
+	// Sort contacts by their normal projected onto the gravity vector
+	// This prevents collisions of objects on top causing lower objects to sink
+	// into each other and the ground, this implementation works for gravity down
+	// the y axis but a more general solution based on the forces acting on an object
+	// would be preferred
+	for (unsigned i = 0; i < _contacts.size(); ++i)
+	{
+		for (unsigned j = 0; j < _contacts.size() - i - 1; ++j)
+		{
+			if (_contacts[j+1]._contactNormal.y() < _contacts[j]._contactNormal.y())
+			{
+				std::swap(_contacts[j+1], _contacts[j]);
+			}
+		}
+	}
+
+
 	double elasticity = 0.8;
 	double friction = 0.05;
 
-	Vector2d position = _state._position;
+	Vector2d originalPosition = _state._position;
 
 	for (unsigned i = 0; i < _contacts.size(); ++i)
 	{
 		const Contact& contact = _contacts[i];
 
-		// Separate the objects
-		_state._position += contact._contactNormal * contact._penetrationDistance;
+		Vector2d relVel = _state._velocity - contact._velocityB;
 
 		// Apply friction
 		if (abs(_state._velocity.dot(contact._contactNormal)) > Util::EPSILON)
 		{
 			Vector2d tangent = contact._contactNormal.tangent();
-			double VdotT = tangent.dot(contact._relativeVelocity) / GetMass();
+			double VdotT = tangent.dot(relVel) / GetMass();
 			_state._velocity -= tangent * VdotT * friction;
 		}
 		
-		// For collisions against fixed objects reflect the velocity
-		if (contact._static)
+		// Conservation of momentum
+		double relVeldotN = relVel.dot(contact._contactNormal);
+		if (relVeldotN < 0)
 		{
-			_state._velocity -= (1.0 + elasticity) * contact._contactNormal * contact._contactNormal.dot(_state._velocity);
+			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(relVel)) / contact._totalMass;
+			_state._velocity += contact._contactNormal * normalImpulse / GetMass();
 		}
-		// For collisions between moving objects preserve the momentum along the collision normal
+
+		// Separate the objects
+		/*
+		double deltaDotNormal = (_state._position - originalPosition).dot(contact._contactNormal);
+		*/
+
+		// Stop objects above causing delta positions
+		if (contact._contactNormal.y() > 0)
+		{
+			_state._position += contact._contactNormal * Util::Max(contact._penetrationDistance * 2 / 3.0, 0.0);
+		}
 		else
 		{
-			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(contact._relativeVelocity)) / contact._totalMass;
-			_state._velocity += contact._contactNormal * normalImpulse / GetMass();
+			_state._position += contact._contactNormal * Util::Max(contact._penetrationDistance / 3.0, 0.0);
 		}
 	}
 
@@ -229,7 +256,10 @@ void BoxObject::UpdateShape(World& world)
 		break;
 
 	case COLOR_MOTION:
-		quad._color = Color();
+		{
+			float m = 0.3f + 0.7f * (float)Util::Clamp(GetVelocity().length() / 30.0, 0.0, 1.0);
+			quad._color = Color(m, m, m, 1.0f);
+		}
 		break;
 
 	case COLOR_PROPERTY:
@@ -242,7 +272,9 @@ void BoxObject::UpdateShape(World& world)
 void BoxObject::ProcessCollisions()
 {
 	Contact contact;
-	contact._relativeVelocity = GetVelocity();
+	//contact._relativeVelocity = GetVelocity();
+	contact._velocityA = GetVelocity();
+	contact._velocityB = Vector2d(0);
 	contact._totalMass = 1 / GetMass();
 	contact._static = true;
 	Vector2d position = GetPosition();
@@ -304,16 +336,19 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 
 		dist = dist.normalize();
 
+		/*
 		Vector2d relVel = GetVelocity() - object.GetVelocity();
 		
 		if (relVel.dot(dist) < 0)
-		{
+		{*/
 			collision._totalMass = GetMass() + object.GetMass();
-			collision._relativeVelocity = relVel;
+			//collision._relativeVelocity = relVel;
 			collision._static = false;
 			collision._contactNormal = dist;
+			collision._velocityA = GetVelocity();
+			collision._velocityB = object.GetVelocity();
 			return true;
-		}
+		/*}*/
 	}
 
 	return false;

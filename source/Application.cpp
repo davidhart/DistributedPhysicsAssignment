@@ -23,19 +23,19 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer);
 
-	for (int x = 0; x < 3; x++)
+	for (int x = 0; x < 8; x++)
 	{
-		for (int y = 0; y < 10; y++)
+		for (int y = 0; y < 8; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x*1.2)-15, y*1.1+1));
 
-			
+			/*
 			int m = rand() % 3;
 			if (m == 0) b->SetMass(1);
 			if (m == 1) b->SetMass(2);
 			if (m == 2) b->SetMass(5);
-			
+			*/
 
 			//b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
