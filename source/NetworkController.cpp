@@ -190,7 +190,7 @@ void ObjectExchange::SendState(TcpSocket& socket)
 				{
 					if (!socket.Send(message))
 					{
-						_objectMigrationOut.erase(_objectMigrationOut.begin(), _objectMigrationOut.end() + migrationSent);
+						_objectMigrationOut.erase(_objectMigrationOut.begin(), _objectMigrationOut.begin() + migrationSent);
 						return;
 					}
 
@@ -218,13 +218,13 @@ void ObjectExchange::ExchangeUpdatesWithWorld()
 {
 	Threading::ScopedLock lock (_exchangeMutex);
 
-	StoreNewPositionUpdates();
-
-	ProcessReceivedPositionUpdates();
+	ProcessOwnershipRequests();
 
 	ProcessOwnershipConfirmations();
 
-	ProcessOwnershipRequests();
+	StoreNewPositionUpdates();
+
+	ProcessReceivedPositionUpdates();
 }
 
 void ObjectExchange::GatherInitialisationData()

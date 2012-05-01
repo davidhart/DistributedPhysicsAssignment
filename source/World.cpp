@@ -24,12 +24,12 @@ World::World() :
 
 int World::GetNumBucketsTall() const
 {
-	return 10;
+	return 40;
 }
 
 int World::GetNumBucketsWide() const
 {
-	return 20;
+	return 80;
 }
 
 World::~World()
@@ -72,7 +72,7 @@ void World::Create(const Renderer* renderer, const Vector2d& worldMin, const Vec
 	l._points[1].y((float)_worldMin.y());
 	_worldBoundaryLines[3] = l;
 
-	l._color = Color(0.5f, 0.5f, 0.5f, 1.0f);
+	l._color = Color(0.5f, 0.5f, 0.5f, 0.45f);
 	l._points[0].y((float)_worldMin.y());
 	l._points[1].y((float)_worldMax.y());
 

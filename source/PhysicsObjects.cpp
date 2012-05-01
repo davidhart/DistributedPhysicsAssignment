@@ -50,8 +50,8 @@ void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& pos
 }
 
 LengthSpring::LengthSpring() :
-	_k(300),
-	_b(4),
+	_k(80),
+	_b(2),
 	_l(1)
 {
 }
@@ -65,7 +65,7 @@ Vector2d LengthSpring::CalculateAcceleration(const State& state) const
 
 	double stretch = length - _l;
 
-	return (_k * direction * stretch - _b * direction * direction.dot(state._velocity)) / 2.0;
+	return (_k * direction * stretch - _b * direction * direction.dot(state._velocity - _object->GetVelocity())) / 2.0;
 }
 
 void LengthSpring::SetEndpoint(Physics::PhysicsObject* object)
@@ -466,7 +466,7 @@ int BlobbyObject::GetPart(int i)
 }
 
 BlobbyObject::BlobbyObject(World& world) :
-	_radius(1.0)
+	_radius(2.0)
 {
 	double angle = 2.0 * PI / NUM_PARTS;
 
@@ -488,12 +488,12 @@ BlobbyObject::BlobbyObject(World& world) :
 		_parts[i]->AddConstraint(_partToMid + i);
 		_partToMid[i].SetEndpoint(this);
 		_partToMid[i].SetLength(_radius);
-		_partToMid[i].SetSpringConstant(250);
+		//_partToMid[i].SetSpringConstant(250);
 
 		AddConstraint(_midToPart+i);
 		_midToPart[i].SetLength(_radius);
 		_midToPart[i].SetEndpoint(_parts[i]);
-		_midToPart[i].SetSpringConstant(250);
+		//_midToPart[i].SetSpringConstant(250);
 
 		for (int j = 0; j < NUM_PARTS; ++j)
 		{

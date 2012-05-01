@@ -21,17 +21,17 @@ Application::Application() :
 void Application::Create(MyWindow& window)
 {
 	_renderer.Create(&window);
-	_world.Create(&_renderer, Vector2d(-40, 0), Vector2d(40, 40));
-	/*
+	_world.Create(&_renderer, Vector2d(-100, 0), Vector2d(100, 100));
+	
 	Physics::PhysicsObject* o = _world.AddBlobbyObject();
-	o->SetPosition(Vector2d(0, 20));
-	*/
-	for (int x = 0; x < 8; x++)
+	o->SetPosition(Vector2d(0, 40));
+	
+	for (int x = 0; x < 80; x++)
 	{
-		for (int y = 0; y < 8; y++)
+		for (int y = 0; y < 10; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x*1.2)-15, y*1.1+1));
+			b->SetPosition(Vector2d((x*1.2)-50, y*1.1+1));
 			
 			
 			int m = rand() % 3;

@@ -84,6 +84,8 @@ void ShapeBatch::Dispose()
 void ShapeBatch::Draw()
 {
 	_renderer->EnableCullFace(false);
+	_renderer->EnableBlend(true);
+	_renderer->BlendMode(BLEND_ALPHA);
 
 	// Draw Quads
 	_quadShader.Use();
