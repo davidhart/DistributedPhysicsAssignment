@@ -10,7 +10,6 @@ World::World() :
 	_objectTiedToCursor(NULL),
 	_colorMode(COLOR_PROPERTY)
 {
-	_bucketSize = (_worldMax - _worldMin) / Vector2d(GetNumBucketsWide(), GetNumBucketsTall());
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
 
@@ -41,8 +40,12 @@ World::~World()
 	}
 }
 
-void World::Create(const Renderer* renderer)
+void World::Create(const Renderer* renderer, const Vector2d& worldMin, const Vector2d& worldMax)
 {
+	_worldMin = worldMin;
+	_worldMax = worldMax;
+	_bucketSize = (_worldMax - _worldMin) / Vector2d(GetNumBucketsWide(), GetNumBucketsTall());
+
 	_shapeBatch.Create(renderer);
 
 	_shapeBatch.AddArray(&_quadBuffer);
@@ -119,6 +122,24 @@ Physics::BoxObject* World::AddBox()
 	_objects.push_back(box);
 
 	return box;
+}
+
+Physics::BlobbyObject* World::AddBlobbyObject()
+{
+	Physics::BlobbyObject* blobby = new Physics::BlobbyObject(*this);
+
+	_objects.push_back(blobby);
+
+	return blobby;
+}
+
+Physics::BlobbyPart* World::AddBlobbyPart()
+{
+	Physics::BlobbyPart* part = new Physics::BlobbyPart();
+
+	_objects.push_back(part);
+
+	return part;
 }
 
 void World::ClearObjects()
@@ -473,4 +494,58 @@ void World::SetColorMode(eColorMode mode)
 eColorMode World::GetColorMode()
 {
 	return _colorMode;
+}
+
+const Vector2d& World::GetWorldMin()
+{
+	return _worldMin;
+}
+
+const Vector2d& World::GetWorldMax()
+{
+	return _worldMax;
+}
+
+int World::CreateQuad()
+{
+	_buffers[_writeBuffer]._quads.push_back(Quad());
+
+	return _buffers[_writeBuffer]._quads.size() - 1;
+}
+
+int World::CreateTriangle()
+{
+	_buffers[_writeBuffer]._triangles.push_back(Triangle());
+
+	return _buffers[_writeBuffer]._triangles.size() - 1;
+}
+
+Color World::GetObjectColor(Physics::PhysicsObject& object)
+{
+	switch (GetColorMode())
+	{
+	case COLOR_OWNERSHIP:
+		if (object.GetOwnerId() == 0)
+			return Color(0.0f, 1.0f, 0.4f);
+		else if (object.GetOwnerId() == 1)
+			return Color(1.0f, 0.4f, 0.0f);
+
+		break;
+
+	case COLOR_MASS:
+		{
+			float m = 0.3f + 0.7f * ( 1.0f - (float)Util::Clamp(object.GetMass() / 5.0, 0.0, 1.0));
+			return Color(m, m, m, 1.0f);
+		}
+		break;
+
+	case COLOR_MOTION:
+		{
+			float m = 0.3f + 0.7f * (float)Util::Clamp(object.GetVelocity().length() / 30.0, 0.0, 1.0);
+			return Color(m, m, m, 1.0f);
+		}
+		break;
+	}
+
+	return object.GetColor();
 }

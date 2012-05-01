@@ -110,6 +110,7 @@ void PhysicsWorkerThread::DetectCollisions()
 	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
 	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
 	*/
+
 	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
 	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
 
@@ -131,17 +132,13 @@ void PhysicsWorkerThread::SolveCollisions()
 
 		if (object->GetOwnerId() == _peerId)
 		{
-			object->SolveContacts();
+			object->SolveContacts(*_world);
 		}
-	}
-	
-	// Update the shapes of every object
-	minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumObjects());
-	maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumObjects());
+		else
+		{
+			std::cout << "?? " << std::endl;
+		}
 
-	for (int i = minIndex; i <= maxIndex; ++i)
-	{
-		Physics::PhysicsObject* object = _world->GetObject(i);
 		object->UpdateShape(*_world);
 	}
 
@@ -215,7 +212,7 @@ GameWorldThread::GameWorldThread() :
 {
 	SetThreadId(0);
 	
-	for (unsigned i = 0; i < 0; ++i)
+	for (unsigned i = 0; i < 2; ++i)
 	{
 		_workers.push_back(new PhysicsWorkerThread());
 		_workers[i]->SetThreadId(i+1);
@@ -226,7 +223,24 @@ GameWorldThread::GameWorldThread() :
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->SetNumThreads(_workers.size()+1);
+
 	}
+
+	int minIndex = GetStartIndexForId(0, _numThreads, _world->GetNumBucketsWide());
+	int maxIndex = GetEndIndexForId(0, _numThreads, _world->GetNumBucketsWide());
+
+	std::cout << minIndex << " " << maxIndex << std::endl;
+
+	minIndex = GetStartIndexForId(1, _numThreads, _world->GetNumBucketsWide());
+	maxIndex = GetEndIndexForId(1, _numThreads, _world->GetNumBucketsWide());
+
+	std::cout << minIndex << " " << maxIndex << std::endl;
+
+	minIndex = GetStartIndexForId(2, _numThreads, _world->GetNumBucketsWide());
+	maxIndex = GetEndIndexForId(2, _numThreads, _world->GetNumBucketsWide());
+
+	std::cout << minIndex << " " << maxIndex << std::endl;
+
 }
 
 GameWorldThread::~GameWorldThread()

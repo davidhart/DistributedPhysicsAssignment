@@ -15,7 +15,7 @@ void Contact::Reverse()
 
 FixedEndSpringConstraint::FixedEndSpringConstraint() :
 	_k(4),
-	_b(0.5)
+	_b(2)
 {
 }
 
@@ -49,9 +49,48 @@ void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& pos
 	_attachmentPoint = position;
 }
 
+LengthSpring::LengthSpring() :
+	_k(300),
+	_b(4),
+	_l(1)
+{
+}
+
+Vector2d LengthSpring::CalculateAcceleration(const State& state) const
+{
+	Vector2d direction = _object->GetPosition() - state._position;
+	double length = direction.length();
+
+	direction /= length;
+
+	double stretch = length - _l;
+
+	return (_k * direction * stretch - _b * direction * direction.dot(state._velocity)) / 2.0;
+}
+
+void LengthSpring::SetEndpoint(Physics::PhysicsObject* object)
+{
+	_object = object;
+}
+
+void LengthSpring::SetLength(double length)
+{
+	_l = length;
+}
+
+void LengthSpring::SetSpringConstant(double k)
+{
+	_k = k;
+}
+
+void LengthSpring::SetDampingConstant(double b)
+{
+	_b = b;
+}
+
 PhysicsObject::PhysicsObject() :
 	_mass(1),
-	_id(0)
+	_ownerId(0)
 {
 	_contacts.reserve(MAX_CONTACTS);
 }
@@ -103,12 +142,12 @@ unsigned int TriangleObject::GetSerializationType()
 
 void PhysicsObject::SetOwnerId(unsigned id)
 {
-	_id = id;
+	_ownerId = id;
 }
 
 unsigned PhysicsObject::GetOwnerId()
 {
-	return _id;
+	return _ownerId;
 }
 
 void PhysicsObject::AddContact(const Contact& contact)
@@ -136,9 +175,9 @@ void PhysicsObject::RemoveConstraint(const Constraint* constraint)
 	assert(std::find(_constraints.begin(), _constraints.end(), constraint) == _constraints.end());
 }
 
-void PhysicsObject::SolveContacts()
+void PhysicsObject::SolveContacts(World& world)
 {
-	ProcessCollisions();
+	ProcessCollisions(world);
 
 	// Sort contacts by their normal projected onto the gravity vector
 	// This prevents collisions of objects on top causing lower objects to sink
@@ -230,8 +269,8 @@ void PhysicsObject::Integrate(double deltaTime)
 	derivative._velocity = 1.0/6.0 * (a._velocity + 2.0*(b._velocity + c._velocity) + d._velocity);
 	derivative._acceleration = 1.0/6.0 * (a._acceleration + 2.0*(b._acceleration + c._acceleration) + d._acceleration);
 
-	SetPosition(_state._position += derivative._velocity * deltaTime);
-	SetVelocity(_state._velocity += derivative._acceleration * deltaTime);
+	_state._position += derivative._velocity * deltaTime;
+	_state._velocity += derivative._acceleration * deltaTime;
 }
 
 Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)
@@ -259,38 +298,12 @@ void BoxObject::UpdateShape(World& world)
 	quad._position = Vector2f(GetPosition());
 	quad._rotation = 0;
 
-	switch (world.GetColorMode())
-	{
-	case COLOR_OWNERSHIP:
-		if (GetOwnerId() == 0)
-			quad._color = Color(0.0f, 1.0f, 0.4f);
-		else if (GetOwnerId() == 1)
-			quad._color = Color(1.0f, 0.4f, 0.0f);
-
-		break;
-
-	case COLOR_MASS:
-		{
-			float m = 0.3f + 0.7f * ( 1.0f - (float)Util::Clamp(GetMass() / 5.0, 0.0, 1.0));
-			quad._color = Color(m, m, m, 1.0f);
-		}
-		break;
-
-	case COLOR_MOTION:
-		{
-			float m = 0.3f + 0.7f * (float)Util::Clamp(GetVelocity().length() / 30.0, 0.0, 1.0);
-			quad._color = Color(m, m, m, 1.0f);
-		}
-		break;
-
-	case COLOR_PROPERTY:
-		quad._color = GetColor();
-	}
+	quad._color = world.GetObjectColor(*this);
 
 	world.UpdateQuad(_quad, quad);
 }
 
-void BoxObject::ProcessCollisions()
+void BoxObject::ProcessCollisions(World& world)
 {
 	Contact contact;
 	//contact._relativeVelocity = GetVelocity();
@@ -301,33 +314,33 @@ void BoxObject::ProcessCollisions()
 	Vector2d position = GetPosition();
 
 	// top
-	if (position.y() > 20 - 0.5)
+	if (position.y() > world.GetWorldMax().y() - 0.5)
 	{
-		contact._penetrationDistance = position.y() - 20 + 0.5;
+		contact._penetrationDistance = position.y() -  world.GetWorldMax().y() + 0.5;
 		contact._contactNormal = Vector2d(0, -1);
 		AddContact(contact);
 	}
 
 	// bottom
-	if (position.y() < 0 + 0.5)
+	if (position.y() < world.GetWorldMin().y() + 0.5)
 	{
-		contact._penetrationDistance = -position.y() + 0.5;
+		contact._penetrationDistance = world.GetWorldMin().y() - position.y() + 0.5;
 		contact._contactNormal = Vector2d(0, 1);
 		AddContact(contact);
 	}
 	
 	// left
-	if (position.x() > 20 - 0.5)
+	if (position.x() > world.GetWorldMax().x() - 0.5)
 	{
-		contact._penetrationDistance = position.x() - 20 + 0.5;
+		contact._penetrationDistance = position.x() - world.GetWorldMax().x() + 0.5;
 		contact._contactNormal = Vector2d(-1, 0);
 		AddContact(contact);
 	}
 
 	// right
-	if (position.x() < -20 + 0.5)
+	if (position.x() < world.GetWorldMin().x() + 0.5)
 	{
-		contact._penetrationDistance = -position.x() + -20 + 0.5;
+		contact._penetrationDistance = world.GetWorldMin().x() - position.x() + 0.5;
 		contact._contactNormal = Vector2d(1, 0);
 		AddContact(contact);
 	}
@@ -390,6 +403,171 @@ void TriangleObject::UpdateShape(World&)
 
 }
 	
-void TriangleObject::ProcessCollisions()
+void TriangleObject::ProcessCollisions(World&)
 {
+}
+
+void BlobbyPart::UpdateShape(World&)
+{
+}
+
+unsigned BlobbyPart::GetSerializationType()
+{
+	return 4;
+}
+
+void BlobbyPart::ProcessCollisions(World& world)
+{
+	Contact contact;
+	contact._velocityA = GetVelocity();
+	contact._velocityB = Vector2d(0);
+	contact._totalMass = 1 / GetMass();
+	contact._static = true;
+	Vector2d position = GetPosition();
+
+	// top
+	if (position.y() > world.GetWorldMax().y())
+	{
+		contact._penetrationDistance = position.y() -  world.GetWorldMax().y();
+		contact._contactNormal = Vector2d(0, -1);
+		AddContact(contact);
+	}
+
+	// bottom
+	if (position.y() < world.GetWorldMin().y())
+	{
+		contact._penetrationDistance = world.GetWorldMin().y() - position.y();
+		contact._contactNormal = Vector2d(0, 1);
+		AddContact(contact);
+	}
+	
+	// left
+	if (position.x() > world.GetWorldMax().x())
+	{
+		contact._penetrationDistance = position.x() - world.GetWorldMax().x();
+		contact._contactNormal = Vector2d(-1, 0);
+		AddContact(contact);
+	}
+
+	// right
+	if (position.x() < world.GetWorldMin().x())
+	{
+		contact._penetrationDistance = world.GetWorldMin().x() - position.x();
+		contact._contactNormal = Vector2d(1, 0);
+		AddContact(contact);
+	}
+}
+
+int BlobbyObject::GetPart(int i)
+{
+	if (i < 0) i+= NUM_PARTS;
+
+	return i % NUM_PARTS;
+}
+
+BlobbyObject::BlobbyObject(World& world) :
+	_radius(1.0)
+{
+	double angle = 2.0 * PI / NUM_PARTS;
+
+	for (int i = 0; i < NUM_PARTS; ++i)
+	{
+		_triangles[i] = world.CreateTriangle();
+
+		_parts[i] = world.AddBlobbyPart();
+
+		_parts[i]->SetPosition(_state._position + _radius * Vector2d(sin(i * angle), cos(i * angle)));
+	}
+
+	double adjLength = (_parts[1]->GetPosition() - _parts[0]->GetPosition()).length();
+	double flexLength = (_parts[2]->GetPosition() - _parts[0]->GetPosition()).length();
+
+	int partId = 0;
+	for (int i = 0; i < NUM_PARTS; ++i)
+	{
+		_parts[i]->AddConstraint(_partToMid + i);
+		_partToMid[i].SetEndpoint(this);
+		_partToMid[i].SetLength(_radius);
+		_partToMid[i].SetSpringConstant(250);
+
+		AddConstraint(_midToPart+i);
+		_midToPart[i].SetLength(_radius);
+		_midToPart[i].SetEndpoint(_parts[i]);
+		_midToPart[i].SetSpringConstant(250);
+
+		for (int j = 0; j < NUM_PARTS; ++j)
+		{
+			if (i != j)
+			{
+				_partToParts[partId].SetEndpoint(_parts[j]);
+				double length = (_parts[j]->GetPosition() - _parts[i]->GetPosition()).length();
+				_partToParts[partId].SetLength(length);
+				_parts[i]->AddConstraint(_partToParts + partId);
+				//_partToParts[partId].SetDampingConstant(2);
+				partId++;
+			}
+		}
+	}
+		/*
+		// Connect each point to the midpoint of the object
+
+		// Connect each point to the opposite point
+		_parts[i]->AddConstraint(_partToOpposite + i);
+		_partToOpposite[i].SetEndpoint(_parts[GetPart(i + NUM_PARTS / 2)]);
+		_partToOpposite[i].SetLength(_radius * 2);
+
+		// Connect each point to the next and previous points
+		_parts[i]->AddConstraint(_partToNext + i);
+		_partToNext[i].SetEndpoint(_parts[GetPart(i+1)]);
+		_partToNext[i].SetLength(adjLength);
+
+		_parts[i]->AddConstraint(_partToPrev + i);
+		_partToPrev[i].SetEndpoint(_parts[GetPart(i-1)]);
+		_partToPrev[i].SetLength(adjLength);
+
+		// Connect ecah point to the second and previous next points
+		_parts[i]->AddConstraint(_flexionNext + i);
+		_flexionNext[i].SetEndpoint(_parts[GetPart(i+2)]);
+		_flexionNext[i].SetLength(flexLength);
+
+		_parts[i]->AddConstraint(_flexionPrev + i);
+		_flexionPrev[i].SetEndpoint(_parts[GetPart(i-2)]);
+		_flexionPrev[i].SetLength(flexLength);
+		*/
+}
+
+void BlobbyObject::UpdateShape(World& world)
+{
+	Color c = world.GetObjectColor(*this);
+	Triangle t;
+	t._color = c;
+	t._points[0] = Vector2f(GetPosition());
+	for (int i = 0; i < NUM_PARTS - 1; ++i)
+	{
+		t._points[2] = Vector2f(_parts[i]->GetPosition());
+		t._points[1] = Vector2f(_parts[i + 1]->GetPosition());
+
+		world.UpdateTriangle(_triangles[i], t);
+	}
+
+	t._points[2] = Vector2f(_parts[NUM_PARTS - 1]->GetPosition());
+	t._points[1] = Vector2f(_parts[0]->GetPosition());
+	world.UpdateTriangle(_triangles[NUM_PARTS - 1], t);
+}
+
+unsigned BlobbyObject::GetSerializationType()
+{
+	return 3;
+}
+
+void BlobbyObject::SetPosition(const Vector2d& position)
+{
+	// Move sub objects relative to main objects
+	for (int i = 0; i < NUM_PARTS; ++i)
+	{
+		Vector2d delta = _parts[i]->GetPosition() - GetPosition();
+		_parts[i]->SetPosition(position + delta);
+	}
+
+	PhysicsObject::SetPosition(position);
 }

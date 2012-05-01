@@ -456,7 +456,7 @@ void ObjectExchange::ProcessReceivedPositionUpdates()
 void ObjectExchange::ProcessOwnershipConfirmations()
 {
 	// Take ownership of objects we received confirmation for
-	for (int i = 0; i < _objectMigrationIn.size(); ++i)
+	for (unsigned i = 0; i < _objectMigrationIn.size(); ++i)
 	{
 		Physics::PhysicsObject* object = _world.GetObject(_objectMigrationIn[i].objectId);
 

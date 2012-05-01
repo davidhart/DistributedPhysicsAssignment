@@ -15,7 +15,19 @@ enum eColorMode
 	COLOR_PROPERTY,
 };
 
-class World
+class IShapeCreator
+{
+
+public:
+
+	virtual int CreateTriangle() = 0;
+	virtual int CreateQuad() = 0;
+
+	// TODO: updateshape
+
+};
+
+class World : public IShapeCreator
 {
 	typedef std::vector<unsigned> Bucket;
 
@@ -24,13 +36,16 @@ public:
 	World();
 	~World();
 
-	void Create(const Renderer* renderer);
+	void Create(const Renderer* renderer, const Vector2d& worldMin, const Vector2d& worldMax);
 	void Dispose();
 
 	// May be called before integration and after narrowphase collision detection
 	// Should not be called from multiple threads
 	Physics::TriangleObject* AddTriangle();
 	Physics::BoxObject* AddBox();
+	Physics::BlobbyObject* AddBlobbyObject();
+	Physics::BlobbyPart* AddBlobbyPart();
+
 	void ClearObjects();
 	Physics::PhysicsObject* GetObject(int id);
 
@@ -67,6 +82,14 @@ public:
 
 	void SetColorMode(eColorMode mode);
 	eColorMode GetColorMode();
+
+	const Vector2d& GetWorldMin();
+	const Vector2d& GetWorldMax();
+
+	int CreateTriangle();
+	int CreateQuad();
+
+	Color GetObjectColor(Physics::PhysicsObject& object);
 
 private:
 

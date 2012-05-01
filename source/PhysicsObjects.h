@@ -8,6 +8,7 @@
 #include <algorithm>
 
 class World;
+class IShapeCreator;
 
 namespace Physics
 {
@@ -68,6 +69,25 @@ namespace Physics
 
 	};
 
+	class LengthSpring : public Constraint
+	{
+	public:
+
+		LengthSpring();
+
+		Vector2d CalculateAcceleration(const State& state) const;
+
+		void SetEndpoint(Physics::PhysicsObject* object);
+
+		void SetSpringConstant(double k);
+		void SetDampingConstant(double b);
+		void SetLength(double length);
+
+	private:
+
+		Physics::PhysicsObject* _object;
+		double _k, _b, _l;
+	};
 
 	class PhysicsObject
 	{
@@ -80,20 +100,20 @@ namespace Physics
 
 		PhysicsObject();
 
-		void SetPosition(const Vector2d& position);
-		virtual Vector2d GetPosition() const;
+		virtual void SetPosition(const Vector2d& position);
+		Vector2d GetPosition() const;
 
-		void SetVelocity(const Vector2d& velocity);
+		virtual void SetVelocity(const Vector2d& velocity);
 		Vector2d GetVelocity() const;
 
 		double GetMass() const;
 		void SetMass(double mass);
 
-		void Integrate(double deltaTime);
+		virtual void Integrate(double deltaTime);
 
 		virtual void UpdateShape(World& world) = 0;
 
-		virtual void ProcessCollisions() = 0;
+		virtual void ProcessCollisions(World& world) = 0;
 
 		// TODO: double dispatch object types
 		virtual bool TestCollision(PhysicsObject&, Contact&) { return false; }
@@ -103,7 +123,7 @@ namespace Physics
 		void AddConstraint(const Constraint* constraint);
 		void RemoveConstraint(const Constraint* constraint);
 		
-		void SolveContacts();
+		void SolveContacts(World& world);
 
 		void SetColor(const Color& color);
 		Color GetColor();
@@ -113,17 +133,17 @@ namespace Physics
 		void SetOwnerId(unsigned id);
 		unsigned GetOwnerId();
 
+	protected:
+		
+		State _state;
+
 	private:
 
-		Vector2d CalculateAcceleration(const State& state) const;
+		virtual Vector2d CalculateAcceleration(const State& state) const;
 
-		Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
+		virtual Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
 
-		Vector2d _jolt;
-		State _state;
 		double _mass;
-
-		Vector2d _positionConstraint;
 
 		static const int MAX_CONTACTS = 25;
 		std::vector<Contact> _contacts;
@@ -131,7 +151,7 @@ namespace Physics
 
 		Color _color;
 
-		unsigned _id;
+		unsigned _ownerId;
 	};
 
 	class BoxObject : public PhysicsObject
@@ -142,7 +162,7 @@ namespace Physics
 		BoxObject(int quad);
 
 		void UpdateShape(World& world);
-		void ProcessCollisions();
+		void ProcessCollisions(World& world);
 		bool TestCollision(PhysicsObject& object, Contact& contact);
 
 		unsigned int GetSerializationType();
@@ -161,7 +181,7 @@ namespace Physics
 		TriangleObject(int triangle);
 
 		void UpdateShape(World& world);
-		void ProcessCollisions();
+		void ProcessCollisions(World& world);
 
 		unsigned int GetSerializationType();
 
@@ -170,4 +190,55 @@ namespace Physics
 		int _triangle;
 	};
 
+	class BlobbyPart : public PhysicsObject
+	{
+	public:
+
+		void UpdateShape(World& world);
+		unsigned GetSerializationType();
+		void ProcessCollisions(World& world);
+	};
+
+	class BlobbyObject : public BlobbyPart
+	{
+
+	public:
+
+		BlobbyObject(World& world);
+		
+		void UpdateShape(World& world);
+		unsigned GetSerializationType();
+
+		static const int NUM_PARTS = 16;
+
+		void SetPosition(const Vector2d& position);
+
+		static int GetPart(int i);
+
+	private:
+
+		BlobbyPart* _parts[NUM_PARTS];
+
+		LengthSpring _partToParts[NUM_PARTS * (NUM_PARTS - 1)];
+
+		LengthSpring _partToMid[NUM_PARTS];
+		LengthSpring _midToPart[NUM_PARTS];
+
+		/*
+		LengthSpring _partToOpposite[NUM_PARTS];
+	
+		
+
+		LengthSpring _partToNext[NUM_PARTS];
+		LengthSpring _flexionNext[NUM_PARTS];
+		LengthSpring _partToPrev[NUM_PARTS];
+		LengthSpring _flexionPrev[NUM_PARTS];
+		*/
+
+		int _triangles[NUM_PARTS];
+
+
+		double _radius;
+
+	};
 }
