@@ -134,10 +134,6 @@ void PhysicsWorkerThread::SolveCollisions()
 		{
 			object->SolveContacts(*_world);
 		}
-		else
-		{
-			std::cout << "?? " << std::endl;
-		}
 
 		object->UpdateShape(*_world);
 	}

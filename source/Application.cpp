@@ -22,10 +22,10 @@ void Application::Create(MyWindow& window)
 {
 	_renderer.Create(&window);
 	_world.Create(&_renderer, Vector2d(-40, 0), Vector2d(40, 40));
-	
+	/*
 	Physics::PhysicsObject* o = _world.AddBlobbyObject();
 	o->SetPosition(Vector2d(0, 20));
-
+	*/
 	for (int x = 0; x < 8; x++)
 	{
 		for (int y = 0; y < 8; y++)
