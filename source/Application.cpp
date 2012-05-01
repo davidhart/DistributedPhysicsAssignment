@@ -29,7 +29,6 @@ void Application::Create(MyWindow& window)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x*1.2)-15, y*1.1+1));
-
 			/*
 			int m = rand() % 3;
 			if (m == 0) b->SetMass(1);

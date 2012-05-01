@@ -177,18 +177,6 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 	}
 }
 
-void World::SolveCollisions(int bucketXMin, int bucketXMax)
-{
-	Vector2i bucket;
-	for (bucket.x(bucketXMin); bucket.x() <= bucketXMax; bucket.x(bucket.x() + 1))
-	{
-		for (bucket.y(0); bucket.y() < GetNumBucketsTall(); bucket.y(bucket.y() + 1))
-		{
-			SolveCollisionsInBucket(bucket);
-		}
-	}
-}
-
 void World::DetectCollisions(int bucketXMin, int bucketXMax)
 {
 	Vector2i bucket;
@@ -256,18 +244,6 @@ void World::DetectCollisionsInBucket(const Vector2i& bucket)
 			if (!(x == 0 && y == 0))
 				TestObjectsAgainstBucket(bucketObjects, bucket + Vector2i(x, y));
 		}
-	}
-}
-
-void World::SolveCollisionsInBucket(const Vector2i& bucket)
-{
-	Bucket& bucketObjects = _objectBuckets[GetBucketIndex(bucket)];
-
-	for (unsigned i = 0; i < bucketObjects.size(); ++i)
-	{
-		Physics::PhysicsObject* object = _objects[bucketObjects[i]];
-		object->SolveContacts();
-		//object->UpdateShape(*this);
 	}
 }
 

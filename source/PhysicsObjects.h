@@ -110,9 +110,8 @@ namespace Physics
 
 		virtual unsigned int GetSerializationType() = 0;
 
-	protected:
-
-		int test;
+		void SetOwnerId(unsigned id);
+		unsigned GetOwnerId();
 
 	private:
 
@@ -131,6 +130,8 @@ namespace Physics
 		std::vector<const Constraint*> _constraints;
 
 		Color _color;
+
+		unsigned _id;
 	};
 
 	class BoxObject : public PhysicsObject

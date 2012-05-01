@@ -122,15 +122,18 @@ void PhysicsWorkerThread::SolveCollisions()
 {
 	_solveCollisionStage.WaitForBegin();
 
-	// Solve collisions in the area this thread & peer is responsible for
-	/*
-	int minIndex = GetPeerStartIndex(_world->GetNumBucketsWide());
-	int maxIndex = GetPeerEndIndex(_world->GetNumBucketsWide());
-	*/
-	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
-	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumBucketsWide());
+	int minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumObjects());
+	int maxIndex = GetEndIndexForId(_threadId, _numThreads, _world->GetNumObjects());
 
-	_world->SolveCollisions(minIndex, maxIndex);
+	for (int i = minIndex; i <= maxIndex; ++i)
+	{
+		Physics::PhysicsObject* object = _world->GetObject(i);
+
+		if (object->GetOwnerId() == _peerId)
+		{
+			object->SolveContacts();
+		}
+	}
 	
 	// Update the shapes of every object
 	minIndex = GetStartIndexForId(_threadId, _numThreads, _world->GetNumObjects());

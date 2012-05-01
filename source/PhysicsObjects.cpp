@@ -50,7 +50,8 @@ void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& pos
 }
 
 PhysicsObject::PhysicsObject() :
-	_mass(1)
+	_mass(1),
+	_id(0)
 {
 	_contacts.reserve(MAX_CONTACTS);
 }
@@ -93,6 +94,21 @@ void PhysicsObject::SetColor(const Color& color)
 Color PhysicsObject::GetColor()
 {
 	return _color;
+}
+
+unsigned int TriangleObject::GetSerializationType()
+{
+	return 1; // TODO: enum
+}
+
+void PhysicsObject::SetOwnerId(unsigned id)
+{
+	_id = id;
+}
+
+unsigned PhysicsObject::GetOwnerId()
+{
+	return _id;
 }
 
 void PhysicsObject::AddContact(const Contact& contact)
@@ -201,7 +217,8 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 
 void PhysicsObject::Integrate(double deltaTime)
 {
-	test = 0;
+	_contacts.clear();
+
 	// Integrate using RK4 method
 	Derivative d;
 	Derivative a = EvaluateDerivative(_state, d, 0);
@@ -245,7 +262,11 @@ void BoxObject::UpdateShape(World& world)
 	switch (world.GetColorMode())
 	{
 	case COLOR_OWNERSHIP:
-		quad._color = Color();
+		if (GetOwnerId() == 0)
+			quad._color = Color(0.0f, 1.0f, 0.4f);
+		else if (GetOwnerId() == 1)
+			quad._color = Color(1.0f, 0.4f, 0.0f);
+
 		break;
 
 	case COLOR_MASS:
@@ -371,9 +392,4 @@ void TriangleObject::UpdateShape(World&)
 	
 void TriangleObject::ProcessCollisions()
 {
-}
-
-unsigned int TriangleObject::GetSerializationType()
-{
-	return 1; // TODO: enum
 }

@@ -32,6 +32,7 @@ class PhysicsWorkerThread : public Threading::Thread
 public:
 
 	friend class GameWorldThread;
+	friend class ObjectExchange;
 
 	PhysicsWorkerThread();
 

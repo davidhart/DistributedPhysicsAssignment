@@ -8,6 +8,504 @@ using namespace Networking;
 const std::string NetworkController::BROADCAST_STRING("Is anyone there?");
 const std::string NetworkController::BROADCAST_REPLY_STRING("Yes I am here");
 
+ObjectExchange::ObjectExchange(GameWorldThread& worldThread, unsigned peerId) :
+	_worldThread(worldThread),
+	_world(*(worldThread._world)),
+	_peerId(peerId)
+{
+	Reset();
+}
+
+void ObjectExchange::Reset()
+{
+	_objectMigrationIn.clear();
+	_objectMigrationOut.clear();
+
+	_sendData._messagesSent = 0;
+	_sendData._newState.clear();
+	_sendData._sendingState.clear();
+
+	_updateData._objectsRead = 0;
+	_updateData._objectsReceived.clear();
+	_updateData._objectsUpdate.clear();
+
+	_initialisationDataOut._messagesSent = 0;
+	_initialisationDataOut._messages.clear();
+
+	
+	_initialisationDataIn._objectsRead = 0;
+	_initialisationDataIn._objects.clear();
+	_initialisationDataIn._initialisationReceived = false;
+}
+
+void ObjectExchange::ReceiveState(TcpSocket& socket)
+{
+	// Store parts of frames as they arrive
+	Message message;
+
+	while (socket.Receive(message))
+	{
+		eMessageType messageType;
+
+		if (!message.Read(messageType))
+		{
+			std::cout << "Invalid message received" << std::endl;
+			socket.Close();
+			return;
+		}
+
+		if (messageType == OBJECT_UPDATES)
+		{
+			HandleUpdateMessage(socket, message);
+		}
+		else if (messageType == OBJECT_MIGRATION)
+		{
+			HandleMigrationMessage(socket, message);
+		}
+		else
+		{
+			socket.Close();
+			std::cout << "Invalid message received" << std::endl;
+			return;
+		}
+	}
+
+	if (!socket.IsOpen())
+	{
+		std::cout << "peer timed out" << std::endl;
+	}
+}
+
+void ObjectExchange::HandleUpdateMessage(TcpSocket& socket, Message& message)
+{
+	// If this is the first update message of a batch
+	if (_updateData._objectsReceived.size() == 0)
+	{
+		unsigned numObjects = 0;
+		if (!message.Read(numObjects))
+		{
+			socket.Close();
+			return;
+		}
+
+		_updateData._objectsReceived.resize(numObjects);
+		_updateData._objectsRead = 0;
+	}
+
+
+	while(_updateData._objectsRead < _updateData._objectsReceived.size())
+	{
+		ObjectState& object = _updateData._objectsReceived[_updateData._objectsRead];
+
+		// If message doesn't contain another id wait for next message
+		if (!message.Read(object.id))
+		{
+			break;
+		}
+
+		bool valid = true;
+		valid &= message.Read(object.x);
+		valid &= message.Read(object.y);
+		valid &= message.Read(object.vx);
+		valid &= message.Read(object.vy);
+
+		// If malformed object
+		if (!valid)
+		{
+			socket.Close();
+			return;
+		}
+
+		_updateData._objectsRead++;
+	}
+
+	if (_updateData._objectsRead == _updateData._objectsReceived.size())
+	{
+		Threading::ScopedLock lock(_exchangeMutex);
+
+		_updateData._objectsReceived.swap(_updateData._objectsUpdate);
+		_updateData._objectsReceived.clear();
+		_updateData._objectsRead = 0;
+	}
+}
+
+void ObjectExchange::HandleMigrationMessage(TcpSocket& socket, Message& message)
+{
+	Threading::ScopedLock lock (_exchangeMutex);
+
+	ObjectMigration migration;
+
+	while(message.Read(migration.type))
+	{
+		if (!message.Read(migration.objectId))
+		{
+			socket.Close();
+			return;
+		}
+		
+		_objectMigrationIn.push_back(migration);
+	}
+}
+
+void ObjectExchange::SendState(TcpSocket& socket)
+{
+	// Try to send waiting messages messages
+	while (_sendData._messagesSent < _sendData._sendingState.size())
+	{
+
+		// If sending would block, give up for now
+		if (!socket.Send(_sendData._sendingState[_sendData._messagesSent]))
+		{
+			return;
+		}
+		
+		 _sendData._messagesSent++;
+	}
+
+	// If complete frame sent
+	if (_sendData._messagesSent == _sendData._sendingState.size())
+	{
+		_sendData._messagesSent = 0;
+
+		Threading::ScopedLock lock(_exchangeMutex);
+		
+		// Replace the most recent state with the one we just finished sending
+		_sendData._newState.swap(_sendData._sendingState);
+	}
+
+	{
+		Threading::ScopedLock lock(_exchangeMutex);
+		if (_objectMigrationOut.size() != 0)
+		{
+			Message message;
+			message.Append(OBJECT_MIGRATION);
+			
+			const int objectStride = sizeof(eRequestType) + sizeof(unsigned);
+			
+			unsigned migrationSent = 0;
+
+			for (unsigned i = 0; i < _objectMigrationOut.size(); ++i)
+			{
+				if (message.Size() + objectStride >= Message::MAX_BUFFER_SIZE)
+				{
+					if (!socket.Send(message))
+					{
+						_objectMigrationOut.erase(_objectMigrationOut.begin(), _objectMigrationOut.end() + migrationSent);
+						return;
+					}
+
+					message.Clear();
+					message.Append(OBJECT_MIGRATION);
+					migrationSent = i;
+				}
+
+				message.Append(_objectMigrationOut[i].type);
+				message.Append(_objectMigrationOut[i].objectId);
+			}
+
+			if (migrationSent != _objectMigrationOut.size())
+			{
+				if (socket.Send(message))
+				{
+					_objectMigrationOut.clear();
+				}
+			}
+		}
+	}
+}
+
+void ObjectExchange::ExchangeUpdatesWithWorld()
+{
+	Threading::ScopedLock lock (_exchangeMutex);
+
+	StoreNewPositionUpdates();
+
+	ProcessReceivedPositionUpdates();
+
+	ProcessOwnershipConfirmations();
+
+	ProcessOwnershipRequests();
+}
+
+void ObjectExchange::GatherInitialisationData()
+{
+	unsigned numObjects = _worldThread._world->GetNumObjects();
+	_initialisationDataOut._messagesSent = 0;
+	const int objectStride = sizeof(unsigned) * 2 + sizeof(double) * 5;
+
+	Message message;
+	message.Append(numObjects);
+
+	for (unsigned i = 0; i < numObjects; ++i)
+	{
+		// If another object can't fit into the message, add it onto the list
+		// and start building another message
+		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+		{
+			_initialisationDataOut._messages.push_back(message);
+			message.Clear();
+		}
+
+		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+
+		message.Append(object->GetSerializationType());
+		message.Append(object->GetPosition().x());
+		message.Append(object->GetPosition().y());
+		message.Append(object->GetVelocity().x());
+		message.Append(object->GetVelocity().y());
+		message.Append(object->GetColor().To32BitColor());
+		message.Append(object->GetMass());
+	}
+
+	if (message.Size() != sizeof(unsigned short))
+	{
+		_initialisationDataOut._messages.push_back(message);
+	}
+
+	_sendData._messagesSent = 0;
+}
+
+void ObjectExchange::SendInitialisationData(TcpSocket& socket)
+{
+	while (_initialisationDataOut._messagesSent < _initialisationDataOut._messages.size())
+	{
+		// If sending would block, give up for now
+		if (!socket.Send(_initialisationDataOut._messages[_initialisationDataOut._messagesSent]))
+		{
+			return;
+		}
+		
+		 _initialisationDataOut._messagesSent++;
+	}
+}
+
+bool ObjectExchange::InitialisationSent()
+{
+	return _initialisationDataOut._messagesSent == _initialisationDataOut._messages.size();
+}
+
+void ObjectExchange::ReceiveInitialisationData(TcpSocket& socket)
+{
+	Message message;
+	while (socket.Receive(message) && socket.IsOpen())
+	{
+		if (_initialisationDataIn._objects.size() == 0)
+		{
+			int objectsToRead;
+			if (!message.Read(objectsToRead))
+			{
+				socket.Close();
+				return;
+			}
+			std::cout << "Recieving " << objectsToRead << " objects" << std::endl;
+			_initialisationDataIn._objectsRead = 0;
+			_initialisationDataIn._objects.resize(objectsToRead);
+		}
+
+		while(_initialisationDataIn._objectsRead < _initialisationDataIn._objects.size() 
+					&& socket.IsOpen())
+		{						
+			unsigned objectType = 0;
+
+			// If reading an object failed exit and wait for next message
+			if (!message.Read(objectType))
+			{
+				return;
+			}
+			// Reading object type was successul so continue to read remainder of object
+			else
+			{
+				bool valid = true;
+
+				ObjectInitialisation& objectInit = _initialisationDataIn._objects[_initialisationDataIn._objectsRead];
+
+				valid &= message.Read(objectInit.x);
+				valid &= message.Read(objectInit.y);
+				valid &= message.Read(objectInit.vx);
+				valid &= message.Read(objectInit.vy);
+				valid &= message.Read(objectInit.color);
+				valid &= message.Read(objectInit.mass);
+
+				if (!valid)
+				{
+					socket.Close();
+					return;
+				}
+
+				_initialisationDataIn._objectsRead++;
+			}
+		}
+
+		if (_initialisationDataIn._objects.size() == _initialisationDataIn._objectsRead)
+		{
+			Threading::ScopedLock lock (_exchangeMutex);
+			_initialisationDataIn._initialisationReceived = true;
+			return;
+		}
+	}
+}
+
+bool ObjectExchange::InitialisationReceived()
+{
+	return _initialisationDataIn._initialisationReceived;
+}
+
+void ObjectExchange::ExchangeInitialisation()
+{
+	Threading::ScopedLock lock (_exchangeMutex);
+
+	std::cout << "received " << _initialisationDataIn._objects.size() << "objects " << std::endl;
+	_world.ClearObjects();
+
+	for (unsigned i = 0; i < _initialisationDataIn._objects.size(); ++i)
+	{
+		Physics::PhysicsObject* object = NULL;
+		const ObjectInitialisation& objectInit = _initialisationDataIn._objects[i];
+
+		if (objectInit.objectType == 0)
+		{
+			object = _worldThread._world->AddBox();
+		}
+
+		object->SetPosition(Vector2d(objectInit.x, objectInit.y));
+		object->SetVelocity(Vector2d(objectInit.vx, objectInit.vy));
+		object->SetMass(objectInit.mass);
+		object->SetColor(Color(objectInit.color));
+		object->UpdateShape(*_worldThread._world);
+	}
+
+	_initialisationDataIn._objects.clear();
+	_updateData._objectsRead = 0;
+}
+
+void ObjectExchange::StoreNewPositionUpdates()
+{
+	_sendData._newState.clear();
+
+	int numObjects = _worldThread._world->GetNumObjects();
+
+	// TODO: cache this somewhere
+	int numObjectsOwned = 0;
+	for (int i = 0; i < numObjects; ++i)
+	{
+		if (_peerId == _world.GetObject(i)->GetOwnerId())
+		{
+			numObjectsOwned++;
+		}
+	}
+
+	const int objectStride = sizeof(unsigned) * 1 + sizeof(double) * 4;
+
+	Message message;
+	message.Append(OBJECT_UPDATES);
+	message.Append(numObjectsOwned);
+
+	int sent = 0;
+	int appended = 0;
+	for (int i = 0; i < numObjects; ++i)
+	{
+		// If another object can't fit into the message, add it onto the list
+		// and start building another message
+		if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
+		{
+			_sendData._newState.push_back(message);
+			assert(message.Size() != 6);
+			sent = appended;
+			message.Clear();
+			message.Append(OBJECT_UPDATES);
+		}
+
+		Physics::PhysicsObject* object = _world.GetObject(i);
+
+		if (object->GetOwnerId() == _peerId)
+		{
+			message.Append(i);
+			message.Append(object->GetPosition().x());
+			message.Append(object->GetPosition().y());
+			message.Append(object->GetVelocity().x());
+			message.Append(object->GetVelocity().y());
+			appended++;
+		}
+	}
+
+	// If there are some objects left over that don't make a complete message, send it
+	if (sent != numObjectsOwned)
+	{
+		_sendData._newState.push_back(message);
+		assert(message.Size() != 6);
+	}
+}
+
+void ObjectExchange::ProcessReceivedPositionUpdates()
+{
+	// Process position updates
+	for (unsigned i = 0; i < _updateData._objectsUpdate.size(); ++i)
+	{
+		// TODO: check object is not owned by us first?
+		const ObjectState& objectState = _updateData._objectsUpdate[i];
+		Physics::PhysicsObject* object = _world.GetObject(objectState.id);
+
+		object->SetPosition(Vector2d(objectState.x, objectState.y));
+		object->SetVelocity(Vector2d(objectState.vx, objectState.vy));
+	}
+
+	// Clear these updates to be sure we don't apply them again
+	_updateData._objectsUpdate.clear();
+}
+
+void ObjectExchange::ProcessOwnershipConfirmations()
+{
+	// Take ownership of objects we received confirmation for
+	for (int i = 0; i < _objectMigrationIn.size(); ++i)
+	{
+		Physics::PhysicsObject* object = _world.GetObject(_objectMigrationIn[i].objectId);
+
+		if (_objectMigrationIn[i].type == OBJECT_REQUEST)
+		{
+			unsigned otherId = 0;
+			if (_peerId == 0) otherId = 1;
+
+			object->SetOwnerId(otherId);
+			
+			// TODO: deny if spring attached
+			_objectMigrationIn[i].type = OBJECT_REQUEST_ACK;
+			_objectMigrationOut.push_back(_objectMigrationIn[i]);
+		}
+		else if (_objectMigrationIn[i].type == OBJECT_REQUEST_ACK)
+		{
+			object->SetOwnerId(_peerId);
+		}
+	}
+
+	_objectMigrationIn.clear();
+}
+
+void ObjectExchange::ProcessOwnershipRequests()
+{
+	ObjectMigration migration;
+	migration.type = OBJECT_REQUEST;
+
+	// Make requests for any object in our side of the world
+	for (int i = 0; i < _worldThread._world->GetNumObjects(); ++i)
+	{
+		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+		if (object->GetOwnerId() != _peerId)
+		{
+			if ((_peerId == 1 && object->GetPosition().x() > 0) || _peerId == 0 && object->GetPosition().x() < 0)
+			{
+				// Don't queue more than 500 requests
+				if (_objectMigrationOut.size() > 500)
+					return;
+
+				migration.objectId = i;
+				_objectMigrationOut.push_back(migration);
+			}
+		}
+	}
+
+	// TODO: request object with spring attached
+}
+
 NetworkController::NetworkController() :
 	_shutDown(false)
 {
@@ -41,7 +539,9 @@ void NetworkController::Shutdown()
 SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
 	_tcpListenSocket(TCPLISTEN_PORT),
 	_worldThread(worldThread),
-	_state(LISTENING_CLIENT)
+	_state(LISTENING_CLIENT),
+	_objectExchange(worldThread, 0),
+	_hadPeerConnected(false)
 {
 	_broadcastListenSocket.Bind(BROADCAST_PORT);
 	_broadcastListenSocket.SetBlocking(false);
@@ -54,82 +554,19 @@ SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
 
 void SessionMasterController::ExchangeState()
 {
-	Threading::ScopedLock lock(_exchangeMutex);
+	Threading::ScopedLock lock(_stateChangeMutex);
 
 	// Make a copy of the world state to send to the client
 	if (_state == WAIT_ON_INITIALISATION_GATHER)
 	{
-		unsigned numObjects = _worldThread._world->GetNumObjects();
-		_initialisationData._messagesSent = 0;
-		const int objectStride = sizeof(unsigned) * 2 + sizeof(double) * 5;
-
-		Message message;
-		message.Append(numObjects);
-
-		for (unsigned i = 0; i < numObjects; ++i)
-		{
-			// If another object can't fit into the message, add it onto the list
-			// and start building another message
-			if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-			{
-				_initialisationData._messages.push_back(message);
-				message.Clear();
-			}
-
-			Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
-
-			message.Append(object->GetSerializationType());
-			message.Append(object->GetPosition().x());
-			message.Append(object->GetPosition().y());
-			message.Append(object->GetVelocity().x());
-			message.Append(object->GetVelocity().y());
-			message.Append(object->GetColor().To32BitColor());
-			message.Append(object->GetMass());
-		}
-
-		if (message.Size() != sizeof(unsigned short))
-		{
-			_initialisationData._messages.push_back(message);
-		}
-
-		_sendData._messagesSent = 0;
+		_objectExchange.GatherInitialisationData();
 
 		_state = ACCEPTING_CLIENT;
 	}
 	// For now synchronise all objects
 	else if (_state == SYNCHRONISE_CLIENT)
 	{
-		_sendData._newState.clear();
-
-		unsigned numObjects = _worldThread._world->GetNumObjects();
-		const int objectStride = sizeof(unsigned) * 1 + sizeof(double) * 4;
-
-		Message message;
-		message.Append(numObjects);
-
-		for (unsigned i = 0; i < numObjects; ++i)
-		{
-			// If another object can't fit into the message, add it onto the list
-			// and start building another message
-			if (message.Size() + objectStride > Message::MAX_BUFFER_SIZE)
-			{
-				_sendData._newState.push_back(message);
-				message.Clear();
-			}
-
-			Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
-
-			message.Append(i);
-			message.Append(object->GetPosition().x());
-			message.Append(object->GetPosition().y());
-			message.Append(object->GetVelocity().x());
-			message.Append(object->GetVelocity().y());
-		}
-
-		if (message.Size() != sizeof(unsigned short))
-		{
-			_sendData._newState.push_back(message);
-		}
+		_objectExchange.ExchangeUpdatesWithWorld();
 	}
 }
 
@@ -157,7 +594,12 @@ void SessionMasterController::DoTick()
 		break;
 	}
 
-	UpdatePeerId();
+	// If we lost a client
+	if (_hadPeerConnected && !_clientSocket.IsOpen())
+	{
+		_hadPeerConnected = false;
+		UpdatePeerId();
+	}
 }
 
 void SessionMasterController::DoAcceptHostTick()
@@ -178,9 +620,12 @@ void SessionMasterController::DoAcceptHostTick()
 	// Accept an incoming connection request
 	if (_tcpListenSocket.Accept(_clientSocket, address))
 	{
-		Threading::ScopedLock lock(_exchangeMutex);
+		Threading::ScopedLock lock(_stateChangeMutex);
 		std::cout << "Client Connected " << address << std::endl;
 		_clientSocket.SetBlocking(false);
+		_hadPeerConnected = true;
+		_objectExchange.Reset();
+		UpdatePeerId();
 		_state = WAIT_ON_INITIALISATION_GATHER;
 	}
 
@@ -188,21 +633,10 @@ void SessionMasterController::DoAcceptHostTick()
 
 void SessionMasterController::SendSessionInitialization()
 {
-	while (_initialisationData._messagesSent < _initialisationData._messages.size())
-	{
-		// If sending would block, give up for now
-		if (!_clientSocket.Send(_initialisationData._messages[_initialisationData._messagesSent]))
-		{
-			return;
-		}
-		
-		 _initialisationData._messagesSent++;
-	}
+	_objectExchange.SendInitialisationData(_clientSocket);
 
-	// If initialisation complete
-	if (_initialisationData._messagesSent == _initialisationData._messages.size())
+	if (_objectExchange.InitialisationSent())
 	{
-		_initialisationData._messages.clear();
 		_state = SYNCHRONISE_CLIENT;
 	}
 }
@@ -210,33 +644,8 @@ void SessionMasterController::SendSessionInitialization()
 
 void SessionMasterController::DoPeerConnectedTick()
 {
-	while (_sendData._messagesSent < _sendData._sendingState.size())
-	{
-		// If sending would block, give up for now
-		if (!_clientSocket.Send(_sendData._sendingState[_sendData._messagesSent]))
-		{
-			return;
-		}
-		
-		 _sendData._messagesSent++;
-	}
-
-	// If initialisation complete
-	if (_sendData._messagesSent == _sendData._sendingState.size())
-	{
-		_sendData._messagesSent = 0;
-
-		Threading::ScopedLock lock(_exchangeMutex);
-		
-		// Replace the most recent state with the one we just finished sending
-		_sendData._newState.swap(_sendData._sendingState);
-	}
-
-	if (!_clientSocket.IsOpen())
-	{
-		std::cout << "Client timed out" << std::endl;
-		_clientSocket.Close();
-	}
+	_objectExchange.SendState(_clientSocket);
+	_objectExchange.ReceiveState(_clientSocket);
 }
 
 void SessionMasterController::UpdatePeerId()
@@ -255,7 +664,9 @@ void SessionMasterController::UpdatePeerId()
 
 WorkerController::WorkerController(GameWorldThread& worldThread) :
 	_worldThread(worldThread),
-	_state(FINDING_HOST)
+	_state(FINDING_HOST),
+	_objectExchange(worldThread, 1),
+	_hadPeerConnected(false)
 {
 	_broadcastSocket.SetBlocking(false);
 	_broadcastMessage.Append(BROADCAST_STRING);
@@ -286,12 +697,18 @@ void WorkerController::DoTick()
 
 	}
 
-	UpdatePeerId();
+	// If we lost a peer
+	if (_hadPeerConnected && !_serverSocket.IsOpen())
+	{
+		_hadPeerConnected = false;
+		_state = FINDING_HOST;
+		UpdatePeerId();
+	}
 }
 
 void WorkerController::UpdatePeerId()
 {
-	if (_state == SYNCHRONISE_CLIENT)
+	if (_state != FINDING_HOST)
 	{
 		_worldThread.SetPeerId(1);
 		_worldThread.SetNumPeers(2);
@@ -305,66 +722,8 @@ void WorkerController::UpdatePeerId()
 
 void WorkerController::DoConnectedTick()
 {
-	// Store parts of frames as they arrive
-	Message message;
-
-	while (_serverSocket.Receive(message))
-	{
-		if (_updateData._objectsReceived.size() == 0)
-		{
-			unsigned numObjects = 0;
-			if (!message.Read(numObjects))
-			{
-				CloseConnection();
-				return;
-			}
-
-			_updateData._objectsReceived.resize(numObjects);
-			_updateData._objectsRead = 0;
-		}
-
-
-		while(_updateData._objectsRead < _updateData._objectsReceived.size())
-		{
-			ObjectState& object = _updateData._objectsReceived[_updateData._objectsRead];
-
-			// If message doesn't contain another id wait for next message
-			if (!message.Read(object.id))
-			{
-				break;
-			}
-
-			bool valid = true;
-			valid &= message.Read(object.x);
-			valid &= message.Read(object.y);
-			valid &= message.Read(object.vx);
-			valid &= message.Read(object.vy);
-
-			// If malformed object
-			if (!valid)
-			{
-				CloseConnection();
-				return;
-			}
-
-			_updateData._objectsRead++;
-		}
-
-		if (_updateData._objectsRead == _updateData._objectsReceived.size())
-		{
-			Threading::ScopedLock lock(_exchangeMutex);
-
-			_updateData._objectsReceived.swap(_updateData._objectsUpdate);
-			_updateData._objectsReceived.clear();
-			_updateData._objectsRead = 0;
-		}
-	}
-
-	if (!_serverSocket.IsOpen())
-	{
-		std::cout << "Server timed out" << std::endl;
-		_serverSocket.Close();
-	}
+	_objectExchange.SendState(_serverSocket);
+	_objectExchange.ReceiveState(_serverSocket);
 }
 
 void WorkerController::DoFindHostTick()
@@ -391,11 +750,13 @@ void WorkerController::DoFindHostTick()
 		
 		if (_serverSocket.IsOpen())
 		{
-			Threading::ScopedLock lock(_exchangeMutex);
+			Threading::ScopedLock lock(_stateChangeMutex);
 			std::cout << "Connected, awaiting initialization data" << std::endl;
 			_serverSocket.SetBlocking(false);
-			_initialisationData._objects.clear();
+			_hadPeerConnected = true;
+			_objectExchange.Reset();
 			_state = RECEIVING_INITIALISATION;
+			UpdatePeerId();
 		}
 		else
 		{
@@ -406,63 +767,12 @@ void WorkerController::DoFindHostTick()
 
 void WorkerController::ReceiveInitialisationData()
 {
-	Message message;
-	while (_serverSocket.Receive(message) && _serverSocket.IsOpen())
+	_objectExchange.ReceiveInitialisationData(_serverSocket);
+
+	if (_objectExchange.InitialisationReceived())
 	{
-		if (_initialisationData._objects.size() == 0)
-		{
-			int objectsToRead;
-			if (!message.Read(objectsToRead))
-			{
-				CloseConnection();
-				return;
-			}
-			std::cout << "Recieving " << objectsToRead << " objects" << std::endl;
-			_initialisationData._objectsRead = 0;
-			_initialisationData._objects.resize(objectsToRead);
-		}
-
-		while(_initialisationData._objectsRead < _initialisationData._objects.size() 
-					&& _serverSocket.IsOpen())
-		{						
-			unsigned objectType = 0;
-
-			// If reading an object failed exit and wait for next message
-			if (!message.Read(objectType))
-			{
-				return;
-			}
-			// Reading object type was successul so continue to read remainder of object
-			else
-			{
-				bool valid = true;
-
-				ObjectInitialisation& objectInit = _initialisationData._objects[_initialisationData._objectsRead];
-
-				valid &= message.Read(objectInit.x);
-				valid &= message.Read(objectInit.y);
-				valid &= message.Read(objectInit.vx);
-				valid &= message.Read(objectInit.vy);
-				valid &= message.Read(objectInit.color);
-				valid &= message.Read(objectInit.mass);
-
-				if (!valid)
-				{
-					CloseConnection();
-					return;
-				}
-
-				_initialisationData._objectsRead++;
-			}
-		}
-
-		// If initialisation complete
-		if (_initialisationData._objectsRead == _initialisationData._objects.size())
-		{
-			Threading::ScopedLock lock(_exchangeMutex);
-			_state = RECEIVED_INITIALISATION;		
-			return;
-		}
+		Threading::ScopedLock lock(_stateChangeMutex);
+		_state = RECEIVED_INITIALISATION;
 	}
 }
 
@@ -491,46 +801,15 @@ void WorkerController::CloseConnection()
 
 void WorkerController::ExchangeState()
 {
-	Threading::ScopedLock lock(_exchangeMutex);
+	Threading::ScopedLock lock(_stateChangeMutex);
 
 	if (_state == RECEIVED_INITIALISATION)
 	{
-		std::cout << "received " << _initialisationData._objects.size() << "objects " << std::endl;
-		_worldThread._world->ClearObjects();
-
-		for (unsigned i = 0; i < _initialisationData._objects.size(); ++i)
-		{
-			Physics::PhysicsObject* object = NULL;
-			const ObjectInitialisation& objectInit = _initialisationData._objects[i];
-
-			if (objectInit.objectType == 0)
-			{
-				object = _worldThread._world->AddBox();
-			}
-
-			object->SetPosition(Vector2d(objectInit.x, objectInit.y));
-			object->SetVelocity(Vector2d(objectInit.vx, objectInit.vy));
-			object->SetMass(objectInit.mass);
-			object->SetColor(Color(objectInit.color));
-			object->UpdateShape(*_worldThread._world);
-		}
-
-		_initialisationData._objects.clear();
-		_updateData._objectsRead = 0;
+		_objectExchange.ExchangeInitialisation();
 		_state = SYNCHRONISE_CLIENT;
 	}
 	else if (_state == SYNCHRONISE_CLIENT)
 	{
-		for (unsigned i = 0; i < _updateData._objectsUpdate.size(); ++i)
-		{
-			const ObjectState& objectState = _updateData._objectsUpdate[i];
-			Physics::PhysicsObject* object = _worldThread._world->GetObject(objectState.id);
-
-			object->SetPosition(Vector2d(objectState.x, objectState.y));
-			object->SetVelocity(Vector2d(objectState.vx, objectState.vy));
-		}
-
-		// Clear these updates to be sure we don't apply them again
-		_updateData._objectsUpdate.clear();
+		_objectExchange.ExchangeUpdatesWithWorld();
 	}
 }

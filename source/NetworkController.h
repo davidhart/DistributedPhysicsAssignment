@@ -4,8 +4,30 @@
 #include "Uncopyable.h"
 #include "Threading.h"
 #include <vector>
+#include <queue>
 
 class GameWorldThread;
+class World;
+
+
+enum eMessageType
+{
+	OBJECT_UPDATES = 0,
+	OBJECT_MIGRATION = 1,
+};
+
+enum eRequestType
+{
+	OBJECT_REQUEST = 0,
+	OBJECT_REQUEST_ACK = 1,
+	OBJECT_REQUEST_DENY = 2,
+};
+
+struct ObjectMigration
+{
+	eRequestType type;
+	unsigned objectId;
+};
 
 struct ObjectInitialisation
 {
@@ -25,6 +47,83 @@ struct ObjectState
 	double y;
 	double vx;
 	double vy;
+};
+
+class ObjectExchange
+{
+
+public:
+
+	ObjectExchange(GameWorldThread& worldThread, unsigned peerId);
+
+	void SendState(Networking::TcpSocket& socket);
+	void ReceiveState(Networking::TcpSocket& socket);
+
+	void ExchangeUpdatesWithWorld();
+
+	void GatherInitialisationData();
+	void SendInitialisationData(Networking::TcpSocket& socket);
+	bool InitialisationSent();
+
+	void ReceiveInitialisationData(Networking::TcpSocket& socket);
+	bool InitialisationReceived();
+
+	void ExchangeInitialisation();
+
+	void Reset();
+
+private:
+
+	void HandleUpdateMessage(Networking::TcpSocket& socket, Networking::Message& message);
+	void HandleMigrationMessage(Networking::TcpSocket& socket, Networking::Message& message);
+
+	void StoreNewPositionUpdates();
+	void ProcessReceivedPositionUpdates();
+	void ProcessOwnershipConfirmations();
+	void ProcessOwnershipRequests();
+
+	Threading::Mutex _exchangeMutex;
+
+	std::vector<ObjectMigration> _objectMigrationOut;
+	std::vector<ObjectMigration> _objectMigrationIn;
+
+	struct
+	{
+		std::vector<Networking::Message> _newState;
+		std::vector<Networking::Message> _sendingState;
+		unsigned _messagesSent;
+
+	} _sendData;
+
+	struct
+	{
+		unsigned _objectsRead;
+		std::vector<ObjectState> _objectsReceived;
+		std::vector<ObjectState> _objectsUpdate;
+
+	} _updateData;
+	
+	// Variables capturing initialisation data to send to peer
+	struct 
+	{
+		std::vector<Networking::Message> _messages;
+		unsigned _messagesSent;
+
+	} _initialisationDataOut;
+
+	// Variables capturing initialisation data as it arrives
+	struct
+	{
+		unsigned _objectsRead;
+		std::vector<ObjectInitialisation> _objects;
+		bool _initialisationReceived;
+
+	} _initialisationDataIn;
+
+	World& _world;
+	GameWorldThread& _worldThread;
+
+	unsigned _peerId;
 };
 
 class NetworkController : public Threading::Thread
@@ -81,7 +180,7 @@ private:
 	Networking::Message _broadcastReplyMessage;
 
 	GameWorldThread& _worldThread;
-	Threading::Mutex _exchangeMutex;
+	Threading::Mutex _stateChangeMutex;
 
 	enum eState
 	{
@@ -93,19 +192,9 @@ private:
 
 	volatile eState _state;
 
-	struct 
-	{
-		std::vector<Networking::Message> _messages;
-		unsigned _messagesSent;
+	ObjectExchange _objectExchange;
 
-	} _initialisationData;
-
-	struct
-	{
-		std::vector<Networking::Message> _newState;
-		std::vector<Networking::Message> _sendingState;
-		unsigned _messagesSent;
-	} _sendData;
+	bool _hadPeerConnected;
 };
 
 class WorkerController : public NetworkController
@@ -137,8 +226,6 @@ private:
 
 	GameWorldThread& _worldThread;
 
-	Threading::Mutex _exchangeMutex;
-
 	enum eState
 	{
 		FINDING_HOST,
@@ -149,22 +236,9 @@ private:
 
 	volatile eState _state;
 
-	// Variables capturing initialisation data as it arrives
-	struct
-	{
-		unsigned _objectsRead;
+	ObjectExchange _objectExchange;
 
-		std::vector<ObjectInitialisation> _objects;
+	Threading::Mutex _stateChangeMutex;
 
-	} _initialisationData;
-
-	struct
-	{
-		unsigned _objectsRead;
-
-		std::vector<ObjectState> _objectsReceived;
-
-		std::vector<ObjectState> _objectsUpdate;
-
-	} _updateData;
+	bool _hadPeerConnected;
 };

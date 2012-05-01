@@ -69,9 +69,6 @@
     <ClInclude Include="VertexBinding.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Uncopyable.h">
-      <Filter>Util</Filter>
-    </ClInclude>
     <ClInclude Include="Renderer.h">
       <Filter>Graphics</Filter>
     </ClInclude>
@@ -101,6 +98,9 @@
       <Filter>Networking</Filter>
     </ClInclude>
     <ClInclude Include="NetworkController.h" />
+    <ClInclude Include="Uncopyable.h">
+      <Filter>Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">
