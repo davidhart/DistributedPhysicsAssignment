@@ -14,6 +14,14 @@ namespace Physics
 {
 	class PhysicsObject;
 
+	enum eObjectType
+	{
+		OBJECT_BOX = 1,
+		OBJECT_TRIANGLE = 2,
+		OBJECT_BLOBBY = 3,
+		OBJECT_BLOBBY_PART = 4,
+	};
+
 	struct Contact
 	{
 		Vector2d _contactNormal;
@@ -128,7 +136,7 @@ namespace Physics
 		void SetColor(const Color& color);
 		Color GetColor();
 
-		virtual unsigned int GetSerializationType() = 0;
+		virtual unsigned GetSerializationType() = 0;
 
 		void SetOwnerId(unsigned id);
 		unsigned GetOwnerId();

@@ -26,9 +26,9 @@ void Application::Create(MyWindow& window)
 	Physics::PhysicsObject* o = _world.AddBlobbyObject();
 	o->SetPosition(Vector2d(0, 40));
 	
-	for (int x = 0; x < 80; x++)
+	for (int x = 0; x < 10; x++)
 	{
-		for (int y = 0; y < 10; y++)
+		for (int y = 0; y < 2; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
 			b->SetPosition(Vector2d((x*1.2)-50, y*1.1+1));

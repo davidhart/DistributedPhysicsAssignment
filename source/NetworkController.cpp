@@ -305,19 +305,19 @@ void ObjectExchange::ReceiveInitialisationData(TcpSocket& socket)
 		while(_initialisationDataIn._objectsRead < _initialisationDataIn._objects.size() 
 					&& socket.IsOpen())
 		{						
-			unsigned objectType = 0;
+			ObjectInitialisation& objectInit = _initialisationDataIn._objects[_initialisationDataIn._objectsRead];
+			objectInit.objectType = 0;
 
 			// If reading an object failed exit and wait for next message
-			if (!message.Read(objectType))
+			if (!message.Read(objectInit.objectType))
 			{
 				return;
 			}
 			// Reading object type was successul so continue to read remainder of object
 			else
 			{
+				assert(objectInit.objectType != 0);
 				bool valid = true;
-
-				ObjectInitialisation& objectInit = _initialisationDataIn._objects[_initialisationDataIn._objectsRead];
 
 				valid &= message.Read(objectInit.x);
 				valid &= message.Read(objectInit.y);
@@ -362,16 +362,45 @@ void ObjectExchange::ExchangeInitialisation()
 		Physics::PhysicsObject* object = NULL;
 		const ObjectInitialisation& objectInit = _initialisationDataIn._objects[i];
 
-		if (objectInit.objectType == 0)
+		switch (objectInit.objectType)
 		{
-			object = _worldThread._world->AddBox();
+		case Physics::OBJECT_BOX:
+			object = _world.AddBox();
+			break;
+
+		case Physics::OBJECT_TRIANGLE:
+			object = _world.AddTriangle();
+			break;
+
+		case Physics::OBJECT_BLOBBY:
+			object = _world.AddBlobbyObject();
+
+			// When we find a blobby object it should be preceded by a sequence of blobby parts
+			// which are created with the blobby object and so need to be updated
+			for (int j = 0; j < 16; j++)
+			{
+				const ObjectInitialisation& blobbyPartInit = _initialisationDataIn._objects[i-Physics::BlobbyObject::NUM_PARTS+j];
+				assert(blobbyPartInit.objectType == Physics::OBJECT_BLOBBY_PART);
+				
+				Physics::PhysicsObject* blobbyPart = _world.GetObject(_world.GetNumObjects() - Physics::BlobbyObject::NUM_PARTS + j - 1);
+				assert(blobbyPart->GetSerializationType() == Physics::OBJECT_BLOBBY_PART);
+
+				blobbyPart->SetPosition(Vector2d(blobbyPartInit.x, blobbyPartInit.y));
+				blobbyPart->SetVelocity(Vector2d(blobbyPartInit.vx, blobbyPartInit.vy));
+				blobbyPart->SetMass(blobbyPartInit.mass);
+				blobbyPart->SetColor(Color(objectInit.color));
+			}
+			break;
 		}
 
-		object->SetPosition(Vector2d(objectInit.x, objectInit.y));
-		object->SetVelocity(Vector2d(objectInit.vx, objectInit.vy));
-		object->SetMass(objectInit.mass);
-		object->SetColor(Color(objectInit.color));
-		object->UpdateShape(*_worldThread._world);
+		if (object != NULL)
+		{
+			object->SetPosition(Vector2d(objectInit.x, objectInit.y));
+			object->SetVelocity(Vector2d(objectInit.vx, objectInit.vy));
+			object->SetMass(objectInit.mass);
+			object->SetColor(Color(objectInit.color));
+			object->UpdateShape(*_worldThread._world);
+		}
 	}
 
 	_initialisationDataIn._objects.clear();

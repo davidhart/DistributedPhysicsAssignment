@@ -137,7 +137,7 @@ Color PhysicsObject::GetColor()
 
 unsigned int TriangleObject::GetSerializationType()
 {
-	return 1; // TODO: enum
+	return OBJECT_TRIANGLE;
 }
 
 void PhysicsObject::SetOwnerId(unsigned id)
@@ -390,7 +390,7 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 
 unsigned int BoxObject::GetSerializationType()
 {
-	return 0; // TODO: enum
+	return OBJECT_BOX;
 }
 
 TriangleObject::TriangleObject(int quad) :
@@ -413,7 +413,7 @@ void BlobbyPart::UpdateShape(World&)
 
 unsigned BlobbyPart::GetSerializationType()
 {
-	return 4;
+	return OBJECT_BLOBBY_PART;
 }
 
 void BlobbyPart::ProcessCollisions(World& world)
@@ -557,7 +557,7 @@ void BlobbyObject::UpdateShape(World& world)
 
 unsigned BlobbyObject::GetSerializationType()
 {
-	return 3;
+	return OBJECT_BLOBBY;
 }
 
 void BlobbyObject::SetPosition(const Vector2d& position)
