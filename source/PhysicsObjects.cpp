@@ -51,7 +51,7 @@ void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& pos
 
 LengthSpring::LengthSpring() :
 	_k(80),
-	_b(2),
+	_b(1.5),
 	_l(1)
 {
 }
@@ -90,9 +90,13 @@ void LengthSpring::SetDampingConstant(double b)
 
 PhysicsObject::PhysicsObject() :
 	_mass(1),
-	_ownerId(0)
+	_ownerId(0),
+	_parent(NULL),
+	_id(-1)
 {
 	_contacts.reserve(MAX_CONTACTS);
+
+	SetColor(Color((float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), 1.0f));
 }
 
 void PhysicsObject::SetPosition(const Vector2d& position)
@@ -286,10 +290,33 @@ Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivati
 	return d;
 }
 
+bool PhysicsObject::CanMigrate()
+{
+	return _parent == NULL;
+}
+
+void PhysicsObject::SetParent(PhysicsObject* parent)
+{
+	_parent = parent;
+}
+
+PhysicsObject* PhysicsObject::GetParent()
+{
+	return _parent;
+}
+
+void PhysicsObject::SetId(int id)
+{
+	_id = id;
+}
+
+int PhysicsObject::GetId()
+{
+	return _id;
+}
 BoxObject::BoxObject(int quad) :
 	_quad(quad)
 {
-	SetColor(Color((float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), (float)Util::RandRange(0, 1), 1.0f));
 }
 
 void BoxObject::UpdateShape(World& world)
@@ -407,6 +434,10 @@ void TriangleObject::ProcessCollisions(World&)
 {
 }
 
+BlobbyPart::BlobbyPart()
+{
+}
+
 void BlobbyPart::UpdateShape(World&)
 {
 }
@@ -475,65 +506,43 @@ BlobbyObject::BlobbyObject(World& world) :
 		_triangles[i] = world.CreateTriangle();
 
 		_parts[i] = world.AddBlobbyPart();
+		_parts[i]->SetParent(this);
+		_parts[i]->SetMass(0.5 / NUM_PARTS);
 
 		_parts[i]->SetPosition(_state._position + _radius * Vector2d(sin(i * angle), cos(i * angle)));
 	}
-
-	double adjLength = (_parts[1]->GetPosition() - _parts[0]->GetPosition()).length();
-	double flexLength = (_parts[2]->GetPosition() - _parts[0]->GetPosition()).length();
-
 	int partId = 0;
 	for (int i = 0; i < NUM_PARTS; ++i)
 	{
 		_parts[i]->AddConstraint(_partToMid + i);
 		_partToMid[i].SetEndpoint(this);
 		_partToMid[i].SetLength(_radius);
-		//_partToMid[i].SetSpringConstant(250);
 
 		AddConstraint(_midToPart+i);
 		_midToPart[i].SetLength(_radius);
 		_midToPart[i].SetEndpoint(_parts[i]);
 		//_midToPart[i].SetSpringConstant(250);
 
-		for (int j = 0; j < NUM_PARTS; ++j)
+		const double maxLength = _radius * 2;
+		const double maxStrength = 1000;
+		const double minStrength = 200;
+
+		for (int j = 0; j < NUM_PARTS; j++)
 		{
 			if (i != j)
 			{
 				_partToParts[partId].SetEndpoint(_parts[j]);
 				double length = (_parts[j]->GetPosition() - _parts[i]->GetPosition()).length();
+
+				double strength = (1.0 - length / maxLength) * (maxStrength - minStrength) + minStrength;
 				_partToParts[partId].SetLength(length);
+				_partToParts[partId].SetSpringConstant(strength);
 				_parts[i]->AddConstraint(_partToParts + partId);
 				//_partToParts[partId].SetDampingConstant(2);
 				partId++;
 			}
 		}
 	}
-		/*
-		// Connect each point to the midpoint of the object
-
-		// Connect each point to the opposite point
-		_parts[i]->AddConstraint(_partToOpposite + i);
-		_partToOpposite[i].SetEndpoint(_parts[GetPart(i + NUM_PARTS / 2)]);
-		_partToOpposite[i].SetLength(_radius * 2);
-
-		// Connect each point to the next and previous points
-		_parts[i]->AddConstraint(_partToNext + i);
-		_partToNext[i].SetEndpoint(_parts[GetPart(i+1)]);
-		_partToNext[i].SetLength(adjLength);
-
-		_parts[i]->AddConstraint(_partToPrev + i);
-		_partToPrev[i].SetEndpoint(_parts[GetPart(i-1)]);
-		_partToPrev[i].SetLength(adjLength);
-
-		// Connect ecah point to the second and previous next points
-		_parts[i]->AddConstraint(_flexionNext + i);
-		_flexionNext[i].SetEndpoint(_parts[GetPart(i+2)]);
-		_flexionNext[i].SetLength(flexLength);
-
-		_parts[i]->AddConstraint(_flexionPrev + i);
-		_flexionPrev[i].SetEndpoint(_parts[GetPart(i-2)]);
-		_flexionPrev[i].SetLength(flexLength);
-		*/
 }
 
 void BlobbyObject::UpdateShape(World& world)
@@ -560,6 +569,11 @@ unsigned BlobbyObject::GetSerializationType()
 	return OBJECT_BLOBBY;
 }
 
+void BlobbyObject::ProcessCollisions(World&)
+{
+
+}
+
 void BlobbyObject::SetPosition(const Vector2d& position)
 {
 	// Move sub objects relative to main objects
@@ -570,4 +584,14 @@ void BlobbyObject::SetPosition(const Vector2d& position)
 	}
 
 	PhysicsObject::SetPosition(position);
+}
+
+void BlobbyObject::SetOwnerId(unsigned id)
+{
+	for (int i = 0; i < NUM_PARTS; ++i)
+	{
+		_parts[i]->SetOwnerId(id);
+	}
+
+	PhysicsObject::SetOwnerId(id);
 }

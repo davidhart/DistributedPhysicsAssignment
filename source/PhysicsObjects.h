@@ -138,8 +138,16 @@ namespace Physics
 
 		virtual unsigned GetSerializationType() = 0;
 
-		void SetOwnerId(unsigned id);
+		virtual void SetOwnerId(unsigned id);
 		unsigned GetOwnerId();
+
+		bool CanMigrate();
+
+		void SetParent(PhysicsObject* parent);
+		PhysicsObject* GetParent();
+		
+		void SetId(int id);
+		int GetId();
 
 	protected:
 		
@@ -160,6 +168,10 @@ namespace Physics
 		Color _color;
 
 		unsigned _ownerId;
+
+		PhysicsObject* _parent;
+
+		int _id;
 	};
 
 	class BoxObject : public PhysicsObject
@@ -201,13 +213,13 @@ namespace Physics
 	class BlobbyPart : public PhysicsObject
 	{
 	public:
-
+		BlobbyPart();
 		void UpdateShape(World& world);
 		unsigned GetSerializationType();
 		void ProcessCollisions(World& world);
 	};
 
-	class BlobbyObject : public BlobbyPart
+	class BlobbyObject : public PhysicsObject
 	{
 
 	public:
@@ -216,12 +228,15 @@ namespace Physics
 		
 		void UpdateShape(World& world);
 		unsigned GetSerializationType();
+		void ProcessCollisions(World& world);
 
-		static const int NUM_PARTS = 16;
+		static const int NUM_PARTS = 10;
 
 		void SetPosition(const Vector2d& position);
 
 		static int GetPart(int i);
+
+		void SetOwnerId(unsigned id);
 
 	private:
 
@@ -231,17 +246,6 @@ namespace Physics
 
 		LengthSpring _partToMid[NUM_PARTS];
 		LengthSpring _midToPart[NUM_PARTS];
-
-		/*
-		LengthSpring _partToOpposite[NUM_PARTS];
-	
-		
-
-		LengthSpring _partToNext[NUM_PARTS];
-		LengthSpring _flexionNext[NUM_PARTS];
-		LengthSpring _partToPrev[NUM_PARTS];
-		LengthSpring _flexionPrev[NUM_PARTS];
-		*/
 
 		int _triangles[NUM_PARTS];
 

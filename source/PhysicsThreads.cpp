@@ -208,7 +208,7 @@ GameWorldThread::GameWorldThread() :
 {
 	SetThreadId(0);
 	
-	for (unsigned i = 0; i < 2; ++i)
+	for (unsigned i = 0; i < 0; ++i)
 	{
 		_workers.push_back(new PhysicsWorkerThread());
 		_workers[i]->SetThreadId(i+1);

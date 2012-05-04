@@ -91,7 +91,11 @@ public:
 
 	Color GetObjectColor(Physics::PhysicsObject& object);
 
+	Physics::PhysicsObject* GetSelectedObject();
+
 private:
+
+	void AddObject(Physics::PhysicsObject* object);
 
 	void TestObjectsAgainstBucket(Bucket& objects, const Vector2i& bucket);
 	void DetectCollisionsInBucket(const Vector2i& bucket);

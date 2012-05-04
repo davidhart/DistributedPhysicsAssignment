@@ -494,11 +494,21 @@ void ObjectExchange::ProcessOwnershipConfirmations()
 			unsigned otherId = 0;
 			if (_peerId == 0) otherId = 1;
 
-			object->SetOwnerId(otherId);
+			// Acknowledge migration request of object can migrate or the object
+			// does not have the spring attached
+			if (object->CanMigrate() && object != _world.GetSelectedObject())
+			{
+				object->SetOwnerId(otherId);
 			
-			// TODO: deny if spring attached
-			_objectMigrationIn[i].type = OBJECT_REQUEST_ACK;
-			_objectMigrationOut.push_back(_objectMigrationIn[i]);
+				_objectMigrationIn[i].type = OBJECT_REQUEST_ACK;
+				_objectMigrationOut.push_back(_objectMigrationIn[i]);
+			}
+			else
+			{
+				_objectMigrationIn[i].type = OBJECT_REQUEST_DENY;
+				_objectMigrationOut.push_back(_objectMigrationIn[i]);
+			}
+
 		}
 		else if (_objectMigrationIn[i].type == OBJECT_REQUEST_ACK)
 		{
@@ -515,9 +525,9 @@ void ObjectExchange::ProcessOwnershipRequests()
 	migration.type = OBJECT_REQUEST;
 
 	// Make requests for any object in our side of the world
-	for (int i = 0; i < _worldThread._world->GetNumObjects(); ++i)
+	for (int i = 0; i < _world.GetNumObjects(); ++i)
 	{
-		Physics::PhysicsObject* object = _worldThread._world->GetObject(i);
+		Physics::PhysicsObject* object = _world.GetObject(i);
 		if (object->GetOwnerId() != _peerId)
 		{
 			if ((_peerId == 1 && object->GetPosition().x() > 0) || _peerId == 0 && object->GetPosition().x() < 0)
@@ -529,6 +539,18 @@ void ObjectExchange::ProcessOwnershipRequests()
 				migration.objectId = i;
 				_objectMigrationOut.push_back(migration);
 			}
+		}
+	}
+
+	Physics::PhysicsObject* object = _world.GetSelectedObject();
+
+	// If an object that doesn't belong to is is picked up, request it
+	if (object != NULL)
+	{
+		if (object->GetOwnerId() != _peerId)
+		{
+			migration.objectId = object->GetId();
+			_objectMigrationOut.push_back(migration);
 		}
 	}
 

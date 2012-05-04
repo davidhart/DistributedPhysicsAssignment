@@ -108,7 +108,7 @@ Physics::TriangleObject* World::AddTriangle()
 
 	Physics::TriangleObject* triangle = new Physics::TriangleObject(_buffers[_writeBuffer]._triangles.size() - 1);
 
-	_objects.push_back(triangle);
+	AddObject(triangle);
 
 	return triangle;
 }
@@ -119,7 +119,7 @@ Physics::BoxObject* World::AddBox()
 
 	Physics::BoxObject* box = new Physics::BoxObject(_buffers[_writeBuffer]._quads.size() - 1);
 
-	_objects.push_back(box);
+	AddObject(box);
 
 	return box;
 }
@@ -128,7 +128,7 @@ Physics::BlobbyObject* World::AddBlobbyObject()
 {
 	Physics::BlobbyObject* blobby = new Physics::BlobbyObject(*this);
 
-	_objects.push_back(blobby);
+	AddObject(blobby);
 
 	return blobby;
 }
@@ -137,9 +137,15 @@ Physics::BlobbyPart* World::AddBlobbyPart()
 {
 	Physics::BlobbyPart* part = new Physics::BlobbyPart();
 
-	_objects.push_back(part);
+	AddObject(part);
 
 	return part;
+}
+
+void World::AddObject(Physics::PhysicsObject* object)
+{
+	object->SetId(_objects.size());
+	_objects.push_back(object);
 }
 
 void World::ClearObjects()
@@ -413,13 +419,6 @@ void World::HandleUserInteraction()
 			object->AddConstraint(&_cursorSpring);
 			_objectTiedToCursor = object;
 		}
-		/*
-		else
-		{
-			Physics::PhysicsObject* object = AddBox();
-			object->SetPosition(_cursor);
-		}
-		*/
 	}
 
 	if (!_leftButton && _objectTiedToCursor != NULL)
@@ -548,4 +547,18 @@ Color World::GetObjectColor(Physics::PhysicsObject& object)
 	}
 
 	return object.GetColor();
+}
+
+Physics::PhysicsObject* World::GetSelectedObject()
+{
+	Physics::PhysicsObject* object = _objectTiedToCursor;
+	
+	if (object == NULL)
+		return NULL;
+
+	// Return the topmost parent object
+	while (object->GetParent() != NULL)
+		object = _objectTiedToCursor->GetParent();
+
+	return object;
 }
