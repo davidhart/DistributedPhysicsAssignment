@@ -208,7 +208,7 @@ GameWorldThread::GameWorldThread() :
 {
 	SetThreadId(0);
 	
-	for (unsigned i = 0; i < 0; ++i)
+	for (unsigned i = 0; i < 2; ++i)
 	{
 		_workers.push_back(new PhysicsWorkerThread());
 		_workers[i]->SetThreadId(i+1);
@@ -531,5 +531,16 @@ void GameWorldThread::SetNumPeers(unsigned numPeers)
 	for (unsigned i = 0; i < _workers.size(); ++i)
 	{
 		_workers[i]->SetNumPeers(numPeers);
+	}
+
+	if (numPeers == 1)
+	{
+		for (int i = 0; i < _world->GetNumObjects(); ++i)
+		{
+			Physics::PhysicsObject* object = _world->GetObject(i);
+			
+			if (object->CanMigrate())
+				object->SetOwnerId(0);
+		}
 	}
 }

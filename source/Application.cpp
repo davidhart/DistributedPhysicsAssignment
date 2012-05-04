@@ -28,20 +28,18 @@ void Application::Create(MyWindow& window)
 	o->SetPosition(Vector2d(0, 40));
 	*/
 
-	for (int x = 0; x < 1; x++)
+	for (int x = 0; x < 40; x++)
 	{
-		for (int y = 0; y < 10; y++)
+		for (int y = 0; y < 20; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x*1.2)-50, y*1.1+1));
-			
+			b->SetPosition(Vector2d((x*1.2)-20, y*1.1+1));
 			
 			int m = rand() % 3;
-			if (m == 0) b->SetMass(10);
-			if (m == 1) b->SetMass(20);
-			if (m == 2) b->SetMass(50);
+			if (m == 0) b->SetMass(1);
+			if (m == 1) b->SetMass(2);
+			if (m == 2) b->SetMass(5);
 			
-
 			//b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
 	}

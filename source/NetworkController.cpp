@@ -217,14 +217,14 @@ void ObjectExchange::SendState(TcpSocket& socket)
 void ObjectExchange::ExchangeUpdatesWithWorld()
 {
 	Threading::ScopedLock lock (_exchangeMutex);
+	
+	StoreNewPositionUpdates();
+
+	ProcessReceivedPositionUpdates();
 
 	ProcessOwnershipRequests();
 
 	ProcessOwnershipConfirmations();
-
-	StoreNewPositionUpdates();
-
-	ProcessReceivedPositionUpdates();
 }
 
 void ObjectExchange::GatherInitialisationData()
@@ -612,12 +612,20 @@ void SessionMasterController::ExchangeState()
 	{
 		_objectExchange.GatherInitialisationData();
 
+		UpdatePeerId();
+
+		// We are now ready to accept the client
 		_state = ACCEPTING_CLIENT;
 	}
 	// For now synchronise all objects
 	else if (_state == SYNCHRONISE_CLIENT)
 	{
 		_objectExchange.ExchangeUpdatesWithWorld();
+	}
+	else if (_state == DROPPING_CLIENT)
+	{
+		UpdatePeerId();
+		_state = LISTENING_CLIENT;
 	}
 }
 
@@ -648,8 +656,9 @@ void SessionMasterController::DoTick()
 	// If we lost a client
 	if (_hadPeerConnected && !_clientSocket.IsOpen())
 	{
+		Threading::ScopedLock lock(_stateChangeMutex);
 		_hadPeerConnected = false;
-		UpdatePeerId();
+		_state = DROPPING_CLIENT;
 	}
 }
 
@@ -676,7 +685,6 @@ void SessionMasterController::DoAcceptHostTick()
 		_clientSocket.SetBlocking(false);
 		_hadPeerConnected = true;
 		_objectExchange.Reset();
-		UpdatePeerId();
 		_state = WAIT_ON_INITIALISATION_GATHER;
 	}
 
@@ -752,8 +760,7 @@ void WorkerController::DoTick()
 	if (_hadPeerConnected && !_serverSocket.IsOpen())
 	{
 		_hadPeerConnected = false;
-		_state = FINDING_HOST;
-		UpdatePeerId();
+		_state = DROPPING_CLIENT;
 	}
 }
 
@@ -807,7 +814,6 @@ void WorkerController::DoFindHostTick()
 			_hadPeerConnected = true;
 			_objectExchange.Reset();
 			_state = RECEIVING_INITIALISATION;
-			UpdatePeerId();
 		}
 		else
 		{
@@ -857,10 +863,16 @@ void WorkerController::ExchangeState()
 	if (_state == RECEIVED_INITIALISATION)
 	{
 		_objectExchange.ExchangeInitialisation();
+		UpdatePeerId();
 		_state = SYNCHRONISE_CLIENT;
 	}
 	else if (_state == SYNCHRONISE_CLIENT)
 	{
 		_objectExchange.ExchangeUpdatesWithWorld();
+	}
+	else if (_state == DROPPING_CLIENT)
+	{
+		_state = FINDING_HOST;
+		UpdatePeerId();
 	}
 }

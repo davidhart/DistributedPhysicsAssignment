@@ -170,7 +170,6 @@ namespace Physics
 		unsigned _ownerId;
 
 		PhysicsObject* _parent;
-
 		int _id;
 	};
 
