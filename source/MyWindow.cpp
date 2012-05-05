@@ -88,19 +88,19 @@ void MyWindow::OnKeyboard(int key, bool down)
 		bool full = !GetFullscreen();
 		SetFullscreen(full);
 	}
-	else if (key == VK_UP)
+	else if (key == 'W' || key == VK_UP)
 	{
 		_application.CameraKeyEvent(CAMERA_PAN_UP, down);
 	}
-	else if (key == VK_DOWN)
+	else if (key == 'S' || key == VK_DOWN)
 	{
 		_application.CameraKeyEvent(CAMERA_PAN_DOWN, down);
 	}
-	else if (key == VK_RIGHT)
+	else if (key == 'D' || key == VK_RIGHT)
 	{
 		_application.CameraKeyEvent(CAMERA_PAN_RIGHT, down);
 	}
-	else if (key == VK_LEFT)
+	else if (key == 'A' || key == VK_LEFT)
 	{
 		_application.CameraKeyEvent(CAMERA_PAN_LEFT, down);
 	}
@@ -143,6 +143,10 @@ void MyWindow::OnKeyboard(int key, bool down)
 	else if ('4' == key)
 	{
 		_application.SetColorModeProperty();
+	}
+	else if ('B' == key)
+	{
+		_application.ResetBlobby();
 	}
 }
 

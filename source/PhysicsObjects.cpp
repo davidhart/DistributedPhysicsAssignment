@@ -11,6 +11,7 @@ void Contact::Reverse()
 {
 	_contactNormal = -_contactNormal;
 	std::swap(_velocityA, _velocityB);
+	std::swap(_massA, _massB);
 }
 
 FixedEndSpringConstraint::FixedEndSpringConstraint() :
@@ -209,7 +210,7 @@ void PhysicsObject::SolveContacts(World& world)
 	{
 		const Contact& contact = _contacts[i];
 
-		Vector2d relVel = _state._velocity - contact._velocityB;
+		Vector2d relVel = _state._velocity * contact._massA - contact._velocityB * contact._massB;
 
 		// Apply friction
 		if (abs(_state._velocity.dot(contact._contactNormal)) > Util::EPSILON)
@@ -223,7 +224,7 @@ void PhysicsObject::SolveContacts(World& world)
 		double relVeldotN = relVel.dot(contact._contactNormal);
 		if (relVeldotN < 0)
 		{
-			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(relVel)) / contact._totalMass;
+			double normalImpulse = -((1.0 + elasticity) * contact._contactNormal.dot(relVel)) * (contact._massA / (contact._massA + contact._massB));
 			_state._velocity += contact._contactNormal * normalImpulse / GetMass();
 		}
 
@@ -335,8 +336,9 @@ void BoxObject::ProcessCollisions(World& world)
 	Contact contact;
 	//contact._relativeVelocity = GetVelocity();
 	contact._velocityA = GetVelocity();
+	contact._massA = GetMass();
 	contact._velocityB = Vector2d(0);
-	contact._totalMass = 1 / GetMass();
+	contact._massB = 0;
 	contact._static = true;
 	Vector2d position = GetPosition();
 
@@ -402,12 +404,13 @@ bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assu
 		
 		if (relVel.dot(dist) < 0)
 		{*/
-			collision._totalMass = GetMass() + object.GetMass();
 			//collision._relativeVelocity = relVel;
 			collision._static = false;
 			collision._contactNormal = dist;
 			collision._velocityA = GetVelocity();
+			collision._massA = GetMass();
 			collision._velocityB = object.GetVelocity();
+			collision._massB = object.GetMass();
 			return true;
 		/*}*/
 	}
@@ -451,8 +454,9 @@ void BlobbyPart::ProcessCollisions(World& world)
 {
 	Contact contact;
 	contact._velocityA = GetVelocity();
+	contact._massA = GetMass();
 	contact._velocityB = Vector2d(0);
-	contact._totalMass = 1 / GetMass();
+	contact._massB = 0;
 	contact._static = true;
 	Vector2d position = GetPosition();
 
@@ -507,7 +511,7 @@ BlobbyObject::BlobbyObject(World& world) :
 
 		_parts[i] = world.AddBlobbyPart();
 		_parts[i]->SetParent(this);
-		_parts[i]->SetMass(0.5 / NUM_PARTS);
+		_parts[i]->SetMass(1.0);
 
 		_parts[i]->SetPosition(_state._position + _radius * Vector2d(sin(i * angle), cos(i * angle)));
 	}
@@ -585,6 +589,17 @@ void BlobbyObject::SetPosition(const Vector2d& position)
 
 	PhysicsObject::SetPosition(position);
 }
+
+/*
+void BlobbyObject::SetVelocity(const Vector2d& velocity)
+{
+	for (int i = 0; i < NUM_PARTS; ++i)
+	{
+		_parts[i]->SetVelocity(velocity);
+	}
+
+	PhysicsObject::SetVelocity(velocity);
+}*/
 
 void BlobbyObject::SetOwnerId(unsigned id)
 {

@@ -26,11 +26,12 @@ namespace Physics
 	{
 		Vector2d _contactNormal;
 		double _penetrationDistance;
-		double _totalMass;
 		bool _static;
 
 		Vector2d _velocityA;
+		double _massA;
 		Vector2d _velocityB;
+		double _massB;
 
 		void Reverse();
 	};
@@ -229,9 +230,11 @@ namespace Physics
 		unsigned GetSerializationType();
 		void ProcessCollisions(World& world);
 
-		static const int NUM_PARTS = 10;
+		static const int NUM_PARTS = 16;
 
+		// Overrides to apply the same changes to sup parts
 		void SetPosition(const Vector2d& position);
+		//void SetVelocity(const Vector2d& velocity);
 
 		static int GetPart(int i);
 

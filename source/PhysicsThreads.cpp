@@ -313,7 +313,6 @@ void GameWorldThread::PhysicsStep()
 	
 	if (delta < 0) delta = 0;
 	SetStepDelta(delta);
-	
 
 	// Workers begin integration task
 	BeginIntegration();

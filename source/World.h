@@ -93,6 +93,8 @@ public:
 
 	Physics::PhysicsObject* GetSelectedObject();
 
+	void ResetBlobbyPressed();
+
 private:
 
 	void AddObject(Physics::PhysicsObject* object);
@@ -153,4 +155,7 @@ private:
 	Physics::PhysicsObject* _objectTiedToCursor;
 
 	eColorMode _colorMode;
+
+	bool _resetBlobbyPressed;
+	Physics::PhysicsObject* _blobby;
 };

@@ -49,18 +49,28 @@ public:
 	void SetColorModeMotion();
 	void SetColorModeProperty();
 
+	void ResetBlobby();
+
 private:
 
+	void Print(const std::string& string, int x, int y);
+	void CreateHudFont(MyWindow& window);
+	void DisposeHudFont();
 	void UpdateCamera(double delta);
 	void UpdateViewMatrix();
 
 	void SendUserInputToWorld();
 	Vector2d TranslateCursorToWorldCoords(const Vector2i& cursor);
 
+	GLuint _fontList;
+
 	Renderer _renderer;
 
 	double _elapsed;
-	unsigned _framesPerSecond;
+	unsigned _frameCount;
+
+	unsigned _ticksPerSec;
+	unsigned _framesPerSec;
 
 	GameWorldThread _worldThread;
 

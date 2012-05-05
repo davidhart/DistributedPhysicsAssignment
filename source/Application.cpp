@@ -3,14 +3,17 @@
 #include "Application.h"
 #include "MyWindow.h"
 #include <iostream>
+#include <sstream>
 
 const float Application::CAMERA_PAN_SPEED = 1.0f;
 const float Application::CAMERA_ZOOM_SPEED = 3.0f;
 
 Application::Application() :
-	_framesPerSecond(0),
-	_viewZoom(16),
-	_viewTranslation(0, 10)
+	_frameCount(0),
+	_ticksPerSec(0),
+	_framesPerSec(0),
+	_viewZoom(32),
+	_viewTranslation(0, 30)
 {
 	for (int i = 0; i < NUM_CAMERA_ACTIONS; ++i)
 	{
@@ -23,47 +26,57 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer, Vector2d(-100, 0), Vector2d(100, 100));
 	
-	/*
-	Physics::PhysicsObject* o = _world.AddBlobbyObject();
-	o->SetPosition(Vector2d(0, 40));
-	*/
-
-	for (int x = 0; x < 40; x++)
+	for (int x = 0; x < 80; x++)
 	{
-		for (int y = 0; y < 20; y++)
+		for (int y = 0; y < 10; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x*1.2)-20, y*1.1+1));
+			b->SetPosition(Vector2d((x*1.2)-40*1.2, y*1.1+1));
 			
 			int m = rand() % 3;
 			if (m == 0) b->SetMass(1);
 			if (m == 1) b->SetMass(2);
 			if (m == 2) b->SetMass(5);
-			
-			//b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 80));
 		}
 	}
-	
-	/*
-	Physics::BoxObject* b= _world.AddBox();
-	b->SetPosition(Vector2d(0, 0.5));
-	b->SetVelocity(Vector2d(1, 0));
-
-	b= _world.AddBox();
-	b->SetPosition(Vector2d(0, 7.5));
-	b->SetVelocity(Vector2d(0, 0));*/
-	
-	/*
-	for (int i = 0; i < 2; i++)
-	{
-			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d(Util::RandRange(-20, 20), Util::RandRange(0, 20)));
-			b->SetVelocity(Vector2d(0, 0));
-			b->SetVelocity(Vector2d(Util::RandRange(-1, 1), Util::RandRange(-1, 1)).normalize() * Util::RandRange(0, 30));
-	}*/
 
 	_worldThread.SetWorld(&_world);
 	_worldThread.BeginThreads();
+
+
+	CreateHudFont(window);
+}
+
+void Application::CreateHudFont(MyWindow& window)
+{
+	// Using simple deprecated font code in the interest of time
+	HFONT   font;                                                                           
+	HFONT   oldfont;                                                                        
+	_fontList = glGenLists(256);                                                        
+	font = CreateFont(-10, 0, 0, 0, FALSE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE|DEFAULT_PITCH, "System");                                      
+	HDC hDC = GetWindowDC(window.GetSafeHwnd());
+	oldfont = (HFONT)SelectObject(hDC, font);          
+	wglUseFontBitmaps(hDC, 32, 96, _fontList);                         
+	SelectObject(hDC, oldfont);                                            
+	DeleteObject(font);
+}
+
+void Application::DisposeHudFont()
+{
+	glDeleteLists(_fontList, 256);
+}
+
+void Application::Print(const std::string& string, int x, int y)
+{
+	float xPos = x / (float)_width * 2 - 1;
+	float yPos = y / (float)_height * -2 + 1;
+
+	glRasterPos2f(xPos, yPos);
+
+	glPushAttrib(GL_LIST_BIT);                                              
+	glListBase(_fontList - 32);                                                               
+	glCallLists(string.size()+1, GL_UNSIGNED_BYTE, string.c_str());
+	glPopAttrib();  
 }
 
 void Application::Draw()
@@ -73,7 +86,19 @@ void Application::Draw()
 
 	_world.Draw();
 
-	_framesPerSecond++;
+	Print("Simulation and Concurrency - David Hart", 0, 13);
+
+	std::stringstream ss;
+	ss << "Render framerate: " << _framesPerSec << "   " << "Physics framerate: " << _ticksPerSec;
+
+	Print(ss.str(), 0, 13*2);
+
+	ss = std::stringstream();
+	ss << "Objects: " << _world.GetNumObjects();
+
+	Print(ss.str(), 0, 13*3);
+
+	_frameCount++;
 }
 
 void Application::Update(double delta)
@@ -86,10 +111,10 @@ void Application::Update(double delta)
 
 	if (_elapsed > 1)
 	{
-		std::cout << "FPS: " << _framesPerSecond << std::endl;
-		std::cout << "PPS: " << _worldThread.TicksPerSec() << std::endl;
+		_framesPerSec = _frameCount;
+		_ticksPerSec = _worldThread.TicksPerSec();
 
-		_framesPerSecond = 0;
+		_frameCount = 0;
 		_worldThread.ResetTicksCounter();
 		_elapsed = 0;
 	}
@@ -156,6 +181,8 @@ void Application::Dispose()
 	_renderer.Dispose();
 
 	_worldThread.StopPhysics();
+
+	DisposeHudFont();
 }
 
 void Application::Resize(int width, int height)
@@ -234,4 +261,9 @@ void Application::SetColorModeMotion()
 void Application::SetColorModeProperty()
 {
 	_world.SetColorMode(COLOR_PROPERTY);
+}
+
+void Application::ResetBlobby()
+{
+	_world.ResetBlobbyPressed();
 }

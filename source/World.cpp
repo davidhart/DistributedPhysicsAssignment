@@ -8,7 +8,9 @@ World::World() :
 	_worldMin(-20, 0),
 	_worldMax(20, 20),
 	_objectTiedToCursor(NULL),
-	_colorMode(COLOR_PROPERTY)
+	_colorMode(COLOR_PROPERTY),
+	_resetBlobbyPressed(false),
+	_blobby(NULL)
 {
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
@@ -425,7 +427,16 @@ void World::HandleUserInteraction()
 	{
 		_objectTiedToCursor->RemoveConstraint(&_cursorSpring);
 		_objectTiedToCursor = NULL;
-		std::cout << " ====== " << std::endl;
+	}
+
+	if (_resetBlobbyPressed)
+	{
+		if (_blobby == NULL)
+			_blobby = AddBlobbyObject();
+
+		_blobby->SetPosition(Vector2d(0, 40));
+		_blobby->SetVelocity(Vector2d(0, 0));
+		_resetBlobbyPressed = false;
 	}
 }
 
@@ -561,4 +572,9 @@ Physics::PhysicsObject* World::GetSelectedObject()
 		object = _objectTiedToCursor->GetParent();
 
 	return object;
+}
+
+void World::ResetBlobbyPressed()
+{
+	_resetBlobbyPressed = true;
 }
