@@ -148,36 +148,51 @@ void Application::Update(double delta)
 
 void Application::UpdateCamera(double delta)
 {
+	bool cameraChange = false;
+
 	Vector2f panDirection(0.0f);
 	if (_cameraState[CAMERA_PAN_LEFT])
 	{
 		panDirection.x(panDirection.x() - 1);
+		cameraChange = true;
 	}
+
 	if (_cameraState[CAMERA_PAN_RIGHT])
 	{
 		panDirection.x(panDirection.x() + 1);
+		cameraChange = true;
 	}
 
 	if (_cameraState[CAMERA_PAN_DOWN])
 	{
 		panDirection.y(panDirection.y() - 1);
+		cameraChange = true;
 	}
+
 	if (_cameraState[CAMERA_PAN_UP])
 	{
 		panDirection.y(panDirection.y() + 1);
+		cameraChange = true;
 	}
 
 	if (_cameraState[CAMERA_ZOOM_IN])
 	{
 		_viewZoom -= CAMERA_ZOOM_SPEED * (float)delta;
+		cameraChange = true;
 	}
+
 	if (_cameraState[CAMERA_ZOOM_OUT])
 	{
 		_viewZoom += CAMERA_ZOOM_SPEED * (float)delta;
+		cameraChange = true;
 	}
 
-	_viewTranslation += CAMERA_PAN_SPEED * panDirection.normalize() * (float)delta * _viewZoom;
-	UpdateViewMatrix();
+	if (cameraChange)
+	{
+		_viewTranslation += CAMERA_PAN_SPEED * panDirection.normalize() * (float)delta * _viewZoom;
+		UpdateViewMatrix();
+		UpdatePeerBounds();
+	}
 }
 
 void Application::SendUserInputToWorld()
@@ -218,6 +233,7 @@ void Application::Resize(int width, int height)
 	_height = height;
 
 	UpdateViewMatrix();
+	UpdatePeerBounds();
 }
 
 void Application::UpdateViewMatrix()
@@ -229,6 +245,14 @@ void Application::UpdateViewMatrix()
 					-_viewZoom + _viewTranslation.y());
 
 	_renderer.ViewMatrix(_view);
+}
+
+void Application::UpdatePeerBounds()
+{
+	Vector2d edgeDist = Vector2d(_aspect * _viewZoom, _viewZoom);
+
+	_world.SetClientBounds(AABB(Vector2d(_viewTranslation) - edgeDist, 
+		Vector2d(_viewTranslation) + edgeDist));
 }
 
 void Application::CameraKeyEvent(eCameraAction action, bool state)

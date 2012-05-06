@@ -3,6 +3,7 @@
 #include "Networking.h"
 #include "Uncopyable.h"
 #include "Threading.h"
+#include "AABB.h"
 #include <vector>
 #include <queue>
 
@@ -100,6 +101,9 @@ private:
 		unsigned _objectsRead;
 		std::vector<ObjectState> _objectsReceived;
 		std::vector<ObjectState> _objectsUpdate;
+
+		AABB _peerBoundsReceived;
+		AABB _peerBoundsUpdate;
 
 	} _updateData;
 	

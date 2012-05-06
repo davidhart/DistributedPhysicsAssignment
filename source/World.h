@@ -6,6 +6,7 @@
 #include "Threading.h"
 #include "Vector.h"
 #include "ShapeBatch.h"
+#include "AABB.h"
 
 enum eColorMode
 {
@@ -95,6 +96,13 @@ public:
 
 	void ResetBlobbyPressed();
 
+
+	// Threadsafe calls
+	void SetClientBounds(const AABB& bounds);
+	void GetClientBounds(AABB& bounds);
+	void SetPeerBounds(const AABB& bounds);
+	void GetPeerBounds(AABB& bounds);
+
 private:
 
 	void AddObject(Physics::PhysicsObject* object);
@@ -110,10 +118,14 @@ private:
 	Vector2d GetBucketMin(int x, int y) const;
 	int GetBucketIndex(const Vector2i& bucket) const;
 
-	void SwapDrawState(); // Thread safe
+	// Thread safe
+	void SwapDrawState();
 
 	const Quad* GetQuadDrawBuffer() const;
 	const Triangle* GetTriangleDrawBuffer() const;
+	
+	 // Sould be called from render thread only
+	void UpdatePeerBoundaryLines();
 
 	int _writeBuffer;
 	int _readBuffer;
@@ -127,6 +139,7 @@ private:
 	};
 
 	std::vector<Line> _worldBoundaryLines;
+	std::vector<Line> _peerBoundaryLines;
 
 	static const int NUM_STATE_BUFFERS = 3;
 	ShapeBuffer _buffers[3];
@@ -135,6 +148,7 @@ private:
 
 	Threading::Mutex _stateChangeMutex;
 	Threading::Mutex _userInteractionMutex;
+	Threading::Mutex _boundsChangeMutex;
 
 	Vector2d _cursor;
 	bool _leftButton;
@@ -142,6 +156,7 @@ private:
 
 	ShapeBatch _shapeBatch;
 	LineArray _worldBoundaryBuffer;
+	LineArray _peerBoundaryBuffer;
 	QuadArray _quadBuffer;
 	TriangleArray _triangleBuffer;
 
@@ -158,4 +173,8 @@ private:
 
 	bool _resetBlobbyPressed;
 	Physics::PhysicsObject* _blobby;
+
+	AABB _peerBounds;
+	AABB _clientBounds;
+	bool _peerBoundsChanged;
 };

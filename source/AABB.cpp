@@ -1,5 +1,9 @@
 #include "AABB.h"
 
+AABB::AABB()
+{
+}
+
 AABB::AABB(const Vector2d& min, const Vector2d& max) :
 	_min(min),
 	_max(max)

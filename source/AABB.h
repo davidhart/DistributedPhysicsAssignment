@@ -6,6 +6,7 @@ class AABB
 {
 public:
 	
+	AABB();
 	AABB(const Vector2d& min, const Vector2d& max);
 
 	bool Intersects(const AABB& aabb, double& penetrationDepth, Vector2d& contactNormal);
@@ -14,9 +15,22 @@ public:
 	Vector2d Midpoint() const;
 	Vector2d Size() const;
 
+	const Vector2d& Min() const;
+	const Vector2d& Max() const;
+
 private:
 
 	Vector2d _min;
 	Vector2d _max;
 
 };
+
+inline const Vector2d& AABB::Min() const
+{
+	return _min;
+}
+
+inline const Vector2d& AABB::Max() const
+{
+	return _max;
+}

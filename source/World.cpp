@@ -10,7 +10,8 @@ World::World() :
 	_objectTiedToCursor(NULL),
 	_colorMode(COLOR_PROPERTY),
 	_resetBlobbyPressed(false),
-	_blobby(NULL)
+	_blobby(NULL),
+	_peerBounds(Vector2d(0, 0), Vector2d(10, 10))
 {
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
@@ -52,7 +53,9 @@ void World::Create(const Renderer* renderer, const Vector2d& worldMin, const Vec
 	_shapeBatch.AddArray(&_quadBuffer);
 	_shapeBatch.AddArray(&_triangleBuffer);
 
-	_worldBoundaryLines.resize(4 + (GetNumBucketsWide() - 1) + (GetNumBucketsTall() - 1));
+	_worldBoundaryLines.resize(4 + // World Boundary
+								(GetNumBucketsWide() - 1) + (GetNumBucketsTall() - 1)); // Grid lines
+							 
 	
 	Line l;
 	l._color = Color(1.0f, 0.0f, 0.0f, 1.0f);
@@ -96,6 +99,10 @@ void World::Create(const Renderer* renderer, const Vector2d& worldMin, const Vec
 
 	_shapeBatch.AddArray(&_worldBoundaryBuffer);
 	_worldBoundaryBuffer.SetShapes(&_worldBoundaryLines[0], _worldBoundaryLines.size());
+
+	_shapeBatch.AddArray(&_peerBoundaryBuffer);
+	_peerBoundaryLines.resize(4);
+	UpdatePeerBoundaryLines();
 }
 
 void World::Dispose()
@@ -314,6 +321,8 @@ int World::GetNumTriangles() const
 void World::Draw()
 {
 	SwapDrawState();
+
+	UpdatePeerBoundaryLines();
 
 	_quadBuffer.SetShapes(GetQuadDrawBuffer(), _buffers[_drawBuffer]._quads.size());
 	_triangleBuffer.SetShapes(GetTriangleDrawBuffer(), _buffers[_drawBuffer]._triangles.size());
@@ -576,4 +585,74 @@ Physics::PhysicsObject* World::GetSelectedObject()
 void World::ResetBlobbyPressed()
 {
 	_resetBlobbyPressed = true;
+}
+
+void World::SetClientBounds(const AABB& bounds)
+{
+	Threading::ScopedLock lock(_boundsChangeMutex);
+
+	_clientBounds = bounds;
+}
+
+void World::GetClientBounds(AABB& bounds)
+{
+	Threading::ScopedLock lock(_boundsChangeMutex);
+
+	bounds = _clientBounds;
+}
+
+void World::SetPeerBounds(const AABB& bounds)
+{
+	Threading::ScopedLock lock(_boundsChangeMutex);
+
+	_peerBoundsChanged = true;
+	_peerBounds = bounds;
+}
+
+void World::GetPeerBounds(AABB& bounds)
+{
+	Threading::ScopedLock lock(_boundsChangeMutex);
+
+	bounds = _peerBounds;
+}
+
+void World::UpdatePeerBoundaryLines()
+{
+	Threading::ScopedLock lock(_boundsChangeMutex);
+
+	if (_peerBoundsChanged)
+	{
+		Line l;
+		l._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+
+		l._points[0].y((float)_peerBounds.Min().y());
+		l._points[1].y((float)_peerBounds.Max().y());
+
+		l._points[0].x((float)_peerBounds.Min().x());
+		l._points[1].x((float)_peerBounds.Min().x());
+
+		_peerBoundaryLines[0] = l;
+
+		l._points[0].x((float)_peerBounds.Max().x());
+		l._points[1].x((float)_peerBounds.Max().x());
+
+		_peerBoundaryLines[1] = l;
+
+		l._points[0].x((float)_peerBounds.Min().x());
+		l._points[1].x((float)_peerBounds.Max().x());
+
+		l._points[0].y((float)_peerBounds.Min().y());
+		l._points[1].y((float)_peerBounds.Min().y());
+
+		_peerBoundaryLines[2] = l;
+
+		l._points[0].y((float)_peerBounds.Max().y());
+		l._points[1].y((float)_peerBounds.Max().y());
+
+		_peerBoundaryLines[3] = l;
+
+		_peerBoundaryBuffer.SetShapes(&_peerBoundaryLines[0], _peerBoundaryLines.size());
+
+		_peerBoundsChanged = false;
+	}
 }

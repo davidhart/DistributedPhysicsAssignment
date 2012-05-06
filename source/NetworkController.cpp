@@ -82,11 +82,23 @@ void ObjectExchange::HandleUpdateMessage(TcpSocket& socket, Message& message)
 	if (_updateData._objectsReceived.size() == 0)
 	{
 		unsigned numObjects = 0;
-		if (!message.Read(numObjects))
+		float xMin, yMin, xMax, yMax;
+
+		bool valid = true;
+
+		valid &= message.Read(numObjects);
+		valid &= message.Read(xMin);
+		valid &= message.Read(yMin);
+		valid &= message.Read(xMax);
+		valid &= message.Read(yMax);
+
+		if (!valid)
 		{
 			socket.Close();
 			return;
 		}
+
+		_updateData._peerBoundsReceived = AABB(Vector2d(xMin, yMin), Vector2d(xMax, yMax));
 
 		_updateData._objectsReceived.resize(numObjects);
 		_updateData._objectsRead = 0;
@@ -124,6 +136,7 @@ void ObjectExchange::HandleUpdateMessage(TcpSocket& socket, Message& message)
 		Threading::ScopedLock lock(_exchangeMutex);
 
 		_updateData._objectsReceived.swap(_updateData._objectsUpdate);
+		std::swap(_updateData._peerBoundsReceived, _updateData._peerBoundsUpdate);
 		_updateData._objectsReceived.clear();
 		_updateData._objectsRead = 0;
 	}
@@ -429,6 +442,14 @@ void ObjectExchange::StoreNewPositionUpdates()
 	message.Append(OBJECT_UPDATES);
 	message.Append(numObjectsOwned);
 
+	AABB clientBounds;
+	_world.GetClientBounds(clientBounds);
+
+	message.Append((float)clientBounds.Min().x());
+	message.Append((float)clientBounds.Min().y());
+	message.Append((float)clientBounds.Max().x());
+	message.Append((float)clientBounds.Max().y());
+
 	int sent = 0;
 	int appended = 0;
 	for (int i = 0; i < numObjects; ++i)
@@ -467,6 +488,8 @@ void ObjectExchange::StoreNewPositionUpdates()
 
 void ObjectExchange::ProcessReceivedPositionUpdates()
 {
+	_world.SetPeerBounds(_updateData._peerBoundsUpdate);
+
 	// Process position updates
 	for (unsigned i = 0; i < _updateData._objectsUpdate.size(); ++i)
 	{
@@ -718,6 +741,7 @@ void SessionMasterController::UpdatePeerId()
 	{
 		_worldThread.SetPeerId(0);
 		_worldThread.SetNumPeers(1);
+		_worldThread._world->SetPeerBounds(AABB(Vector2d(0, 0), Vector2d(0, 0)));
 	}
 }
 
@@ -775,6 +799,7 @@ void WorkerController::UpdatePeerId()
 	{
 		_worldThread.SetPeerId(0);
 		_worldThread.SetNumPeers(1);
+		_worldThread._world->SetPeerBounds(AABB(Vector2d(0, 0), Vector2d(0, 0)));
 	}
 }
 

@@ -58,6 +58,7 @@ private:
 	void DisposeHudFont();
 	void UpdateCamera(double delta);
 	void UpdateViewMatrix();
+	void UpdatePeerBounds();
 
 	void SendUserInputToWorld();
 	Vector2d TranslateCursorToWorldCoords(const Vector2i& cursor);
