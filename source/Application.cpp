@@ -26,12 +26,15 @@ void Application::Create(MyWindow& window)
 	_renderer.Create(&window);
 	_world.Create(&_renderer, Vector2d(-100, 0), Vector2d(100, 100));
 	
-	for (int x = 0; x < 80; x++)
+	const int BOX_GRID_W = 80;
+	const int BOX_GRID_H = 10;
+
+	for (int x = 0; x < BOX_GRID_W; x++)
 	{
-		for (int y = 0; y < 10; y++)
+		for (int y = 0; y < BOX_GRID_H; y++)
 		{
 			Physics::BoxObject* b= _world.AddBox();
-			b->SetPosition(Vector2d((x*1.2)-40*1.2, y*1.1+1));
+			b->SetPosition(Vector2d((x*1.2)-BOX_GRID_W*0.6, y*1.1+1));
 			
 			int m = rand() % 3;
 			if (m == 0) b->SetMass(1);
@@ -40,9 +43,32 @@ void Application::Create(MyWindow& window)
 		}
 	}
 
+	const int NUM_ROWS = 13;
+	const double PYRAMID_OFFSET = 15;
+	for (int row = 0; row < NUM_ROWS; ++row)
+	{
+		for (int x = 0; x < (NUM_ROWS - row); ++x)
+		{
+			Physics::TriangleObject* t = _world.AddTriangle();
+			t->SetPosition(Vector2d(-PYRAMID_OFFSET + (x*1.2)-(NUM_ROWS - row)*0.6, (BOX_GRID_H+row)*1.1+1));
+
+			int m = rand() % 3;
+			if (m == 0) t->SetMass(1);
+			if (m == 1) t->SetMass(2);
+			if (m == 2) t->SetMass(5);
+
+			t = _world.AddTriangle();
+			t->SetPosition(Vector2d(PYRAMID_OFFSET + (x*1.2)-(NUM_ROWS - row)*0.6, (BOX_GRID_H+row)*1.1+1));
+		
+			m = rand() % 3;
+			if (m == 0) t->SetMass(1);
+			if (m == 1) t->SetMass(2);
+			if (m == 2) t->SetMass(5);
+		}
+	}
+
 	_worldThread.SetWorld(&_world);
 	_worldThread.BeginThreads();
-
 
 	CreateHudFont(window);
 }

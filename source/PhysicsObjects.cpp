@@ -3,9 +3,59 @@
 #include "PhysicsObjects.h"
 #include "World.h"
 #include "ShapeBatch.h"
+#include "AABB.h"
 #include <algorithm>
 
 using namespace Physics;
+
+bool Contact::BoxBoxCollision(const PhysicsObject& a, const PhysicsObject& b)
+{
+	AABB abb(a.GetPosition() - Vector2d(0.5, 0.5), a.GetPosition() + Vector2d(0.5, 0.5));
+	AABB bbb(b.GetPosition() - Vector2d(0.5, 0.5), b.GetPosition() + Vector2d(0.5, 0.5));
+
+	if (abb.Intersects(bbb, _penetrationDistance, _contactNormal))
+	{
+		_static = false;
+		_velocityA = a.GetVelocity();
+		_massA = a.GetMass();
+		_velocityB = b.GetVelocity();
+		_massB = b.GetMass();
+
+		return true;
+	}
+
+	return false;
+}
+
+bool Contact::BoxPointCollision(const PhysicsObject& a, const PhysicsObject& b)
+{
+	AABB abb(a.GetPosition() - Vector2d(0.5, 0.5), a.GetPosition() + Vector2d(0.5, 0.5));
+	Vector2d point = b.GetPosition();
+
+	if (abb.Intersects(point, _penetrationDistance, _contactNormal))
+	{
+		_static = false;
+		_velocityA = a.GetVelocity();
+		_massA = a.GetMass();
+		_velocityB = b.GetVelocity();
+		_massB = b.GetMass();
+
+		return true;
+	}
+
+	return false;
+}
+
+bool Contact::PointBoxCollision(const PhysicsObject& a, const PhysicsObject& b)
+{
+	if (BoxPointCollision(b, a))
+	{
+		Reverse();
+		return true;
+	}
+
+	return false;
+}
 
 void Contact::Reverse()
 {
@@ -158,7 +208,7 @@ unsigned PhysicsObject::GetOwnerId()
 void PhysicsObject::AddContact(const Contact& contact)
 {
 	_contacts.push_back(contact);
-	assert(_contacts.size() <= MAX_CONTACTS);
+	//assert(_contacts.size() <= MAX_CONTACTS);
 }
 
 void PhysicsObject::AddConstraint(const Constraint* constraint)
@@ -375,52 +425,30 @@ void BoxObject::ProcessCollisions(World& world)
 	}
 }
 
-bool BoxObject::TestCollision(PhysicsObject& object, Contact& collision) // assume it is a box for now
-{
-	Vector2d dist = GetPosition() - object.GetPosition();
-
-	if (dist.length() == 0)
-		return false;
-	
-
-	if (abs(dist.x()) < 1 && abs(dist.y()) < 1)
-	{
-
-		if (abs(dist.x()) < abs(dist.y()))
-		{
-			dist.x(0);
-			collision._penetrationDistance = (1 - abs(dist.y())) / 2;
-		}
-		else
-		{
-			dist.y(0);
-			collision._penetrationDistance = (1 - abs(dist.x())) / 2;
-		}
-
-		dist = dist.normalize();
-
-		/*
-		Vector2d relVel = GetVelocity() - object.GetVelocity();
-		
-		if (relVel.dot(dist) < 0)
-		{*/
-			//collision._relativeVelocity = relVel;
-			collision._static = false;
-			collision._contactNormal = dist;
-			collision._velocityA = GetVelocity();
-			collision._massA = GetMass();
-			collision._velocityB = object.GetVelocity();
-			collision._massB = object.GetMass();
-			return true;
-		/*}*/
-	}
-
-	return false;
-}
 
 unsigned int BoxObject::GetSerializationType()
 {
 	return OBJECT_BOX;
+}
+
+bool BoxObject::TestCollision(PhysicsObject& object, Contact& contact) // assume it is a box for now
+{
+	return object.TestCollision(*this, contact);
+}
+
+bool BoxObject::TestCollision(BoxObject& object, Contact& contact)
+{
+	return contact.BoxBoxCollision(object, *this);
+}
+
+bool BoxObject::TestCollision(TriangleObject& object, Contact& contact)
+{
+	return contact.BoxBoxCollision(object, *this);
+}
+
+bool BoxObject::TestCollision(BlobbyPart& object, Contact& contact)
+{
+	return contact.PointBoxCollision(object, *this);
 }
 
 TriangleObject::TriangleObject(int quad) :
@@ -428,14 +456,81 @@ TriangleObject::TriangleObject(int quad) :
 {
 }
 
-void TriangleObject::UpdateShape(World&)
+void TriangleObject::UpdateShape(World& world)
 {
+	Triangle t;
+	t._points[0] = Vector2f((float)GetPosition().x() - 0.5f, (float)GetPosition().y() - 0.5f);
+	t._points[1] = Vector2f((float)GetPosition().x() + 0.5f, (float)GetPosition().y() - 0.5f);
+	t._points[2] = Vector2f((float)GetPosition().x(), (float)GetPosition().y() + 0.5f);
+	t._color = world.GetObjectColor(*this);
 
+	world.UpdateTriangle(_triangle, t);
 }
-	
-void TriangleObject::ProcessCollisions(World&)
+
+void TriangleObject::ProcessCollisions(World& world)
 {
+	Contact contact;
+	//contact._relativeVelocity = GetVelocity();
+	contact._velocityA = GetVelocity();
+	contact._massA = GetMass();
+	contact._velocityB = Vector2d(0);
+	contact._massB = 0;
+	contact._static = true;
+	Vector2d position = GetPosition();
+
+	// top
+	if (position.y() > world.GetWorldMax().y() - 0.5)
+	{
+		contact._penetrationDistance = position.y() -  world.GetWorldMax().y() + 0.5;
+		contact._contactNormal = Vector2d(0, -1);
+		AddContact(contact);
+	}
+
+	// bottom
+	if (position.y() < world.GetWorldMin().y() + 0.5)
+	{
+		contact._penetrationDistance = world.GetWorldMin().y() - position.y() + 0.5;
+		contact._contactNormal = Vector2d(0, 1);
+		AddContact(contact);
+	}
+	
+	// left
+	if (position.x() > world.GetWorldMax().x() - 0.5)
+	{
+		contact._penetrationDistance = position.x() - world.GetWorldMax().x() + 0.5;
+		contact._contactNormal = Vector2d(-1, 0);
+		AddContact(contact);
+	}
+
+	// right
+	if (position.x() < world.GetWorldMin().x() + 0.5)
+	{
+		contact._penetrationDistance = world.GetWorldMin().x() - position.x() + 0.5;
+		contact._contactNormal = Vector2d(1, 0);
+		AddContact(contact);
+	}
 }
+
+bool TriangleObject::TestCollision(PhysicsObject& object, Contact& contact)
+{
+	return object.TestCollision(*this, contact);
+}
+
+bool TriangleObject::TestCollision(BoxObject& object, Contact& contact)
+{
+	return contact.BoxBoxCollision(object, *this);
+}
+
+bool TriangleObject::TestCollision(TriangleObject& object, Contact& contact)
+{
+	return contact.BoxBoxCollision(object, *this);
+}
+
+bool TriangleObject::TestCollision(BlobbyPart& object, Contact& contact)
+{
+	return contact.PointBoxCollision(object, *this);
+}
+
 
 BlobbyPart::BlobbyPart()
 {
@@ -491,6 +586,27 @@ void BlobbyPart::ProcessCollisions(World& world)
 		contact._contactNormal = Vector2d(1, 0);
 		AddContact(contact);
 	}
+}
+
+bool BlobbyPart::TestCollision(PhysicsObject& object, Contact& contact)
+{
+	return object.TestCollision(*this, contact);
+}
+
+bool BlobbyPart::TestCollision(BoxObject& object, Contact& contact)
+{
+	return contact.BoxPointCollision(object, *this);
+}
+
+bool BlobbyPart::TestCollision(TriangleObject& object, Contact& contact)
+{
+	return contact.BoxPointCollision(object, *this);
+}
+
+// Blobby parts can't collide with each other
+bool BlobbyPart::TestCollision(BlobbyPart&, Contact&)
+{
+	return false;
 }
 
 int BlobbyObject::GetPart(int i)
@@ -590,17 +706,6 @@ void BlobbyObject::SetPosition(const Vector2d& position)
 	PhysicsObject::SetPosition(position);
 }
 
-/*
-void BlobbyObject::SetVelocity(const Vector2d& velocity)
-{
-	for (int i = 0; i < NUM_PARTS; ++i)
-	{
-		_parts[i]->SetVelocity(velocity);
-	}
-
-	PhysicsObject::SetVelocity(velocity);
-}*/
-
 void BlobbyObject::SetOwnerId(unsigned id)
 {
 	for (int i = 0; i < NUM_PARTS; ++i)
@@ -609,4 +714,25 @@ void BlobbyObject::SetOwnerId(unsigned id)
 	}
 
 	PhysicsObject::SetOwnerId(id);
+}
+
+// The midpoint of the blobby object can't collide with anything
+bool BlobbyObject::TestCollision(PhysicsObject&, Contact&)
+{
+	return false;
+}
+
+bool BlobbyObject::TestCollision(BoxObject&, Contact&)
+{
+	return false;
+}
+
+bool BlobbyObject::TestCollision(TriangleObject&, Contact&)
+{
+	return false;
+}
+
+bool BlobbyObject::TestCollision(BlobbyPart&, Contact&)
+{
+	return false;
 }

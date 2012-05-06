@@ -13,6 +13,10 @@ class IShapeCreator;
 namespace Physics
 {
 	class PhysicsObject;
+	class BlobbyObject;
+	class BlobbyPart;
+	class BoxObject;
+	class TriangleObject;
 
 	enum eObjectType
 	{
@@ -24,6 +28,12 @@ namespace Physics
 
 	struct Contact
 	{
+		bool BoxBoxCollision(const PhysicsObject& a, const PhysicsObject& b);
+
+		bool BoxPointCollision(const PhysicsObject& a, const PhysicsObject& b);
+		bool PointBoxCollision(const PhysicsObject& a, const PhysicsObject& b);
+		void Reverse();
+
 		Vector2d _contactNormal;
 		double _penetrationDistance;
 		bool _static;
@@ -32,8 +42,6 @@ namespace Physics
 		double _massA;
 		Vector2d _velocityB;
 		double _massB;
-
-		void Reverse();
 	};
 
 	struct State
@@ -125,7 +133,10 @@ namespace Physics
 		virtual void ProcessCollisions(World& world) = 0;
 
 		// TODO: double dispatch object types
-		virtual bool TestCollision(PhysicsObject&, Contact&) { return false; }
+		virtual bool TestCollision(PhysicsObject&, Contact&) = 0;
+		virtual bool TestCollision(BoxObject&, Contact&) = 0;
+		virtual bool TestCollision(TriangleObject&, Contact&) = 0;
+		virtual bool TestCollision(BlobbyPart&, Contact&) = 0;
 
 		void AddContact(const Contact& contact);
 
@@ -183,9 +194,12 @@ namespace Physics
 
 		void UpdateShape(World& world);
 		void ProcessCollisions(World& world);
-		bool TestCollision(PhysicsObject& object, Contact& contact);
-
 		unsigned int GetSerializationType();
+
+		bool TestCollision(PhysicsObject&, Contact&);
+		bool TestCollision(BoxObject&, Contact&);
+		bool TestCollision(TriangleObject&, Contact&);
+		bool TestCollision(BlobbyPart&, Contact&);
 
 	private:
 
@@ -205,6 +219,11 @@ namespace Physics
 
 		unsigned int GetSerializationType();
 
+		bool TestCollision(PhysicsObject&, Contact&);
+		bool TestCollision(BoxObject&, Contact&);
+		bool TestCollision(TriangleObject&, Contact&);
+		bool TestCollision(BlobbyPart&, Contact&);
+
 	private:
 
 		int _triangle;
@@ -213,10 +232,16 @@ namespace Physics
 	class BlobbyPart : public PhysicsObject
 	{
 	public:
+
 		BlobbyPart();
 		void UpdateShape(World& world);
 		unsigned GetSerializationType();
 		void ProcessCollisions(World& world);
+
+		bool TestCollision(PhysicsObject&, Contact&);
+		bool TestCollision(BoxObject&, Contact&);
+		bool TestCollision(TriangleObject&, Contact&);
+		bool TestCollision(BlobbyPart&, Contact&);
 	};
 
 	class BlobbyObject : public PhysicsObject
@@ -239,6 +264,11 @@ namespace Physics
 		static int GetPart(int i);
 
 		void SetOwnerId(unsigned id);
+
+		bool TestCollision(PhysicsObject&, Contact&);
+		bool TestCollision(BoxObject&, Contact&);
+		bool TestCollision(TriangleObject&, Contact&);
+		bool TestCollision(BlobbyPart&, Contact&);
 
 	private:
 

@@ -17,11 +17,10 @@ World::World() :
 
 	_cursorSpring.SetSpringConstant(1000);
 	_cursorSpring.SetDampingConstant(100);
-	/*
 	for (unsigned i = 0; i < _objectBuckets.size(); ++i)
 	{
-		_objectBuckets[i].reserve(500);
-	}*/
+		_objectBuckets[i].reserve(20);
+	}
 }
 
 int World::GetNumBucketsTall() const

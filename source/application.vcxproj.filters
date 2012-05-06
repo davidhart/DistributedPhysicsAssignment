@@ -43,6 +43,9 @@
       <Filter>Networking</Filter>
     </ClCompile>
     <ClCompile Include="NetworkController.cpp" />
+    <ClCompile Include="AABB.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -99,6 +102,9 @@
     </ClInclude>
     <ClInclude Include="NetworkController.h" />
     <ClInclude Include="Uncopyable.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="AABB.h">
       <Filter>Util</Filter>
     </ClInclude>
   </ItemGroup>
