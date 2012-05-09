@@ -243,9 +243,19 @@ void PhysicsObject::SolveContacts(World& world)
 	{
 		for (unsigned j = 0; j < _contacts.size() - i - 1; ++j)
 		{
-			if (_contacts[j+1]._contactNormal.y() < _contacts[j]._contactNormal.y())
+			if (_state._position.y() < 80.0)
 			{
-				std::swap(_contacts[j+1], _contacts[j]);
+				if (_contacts[j+1]._contactNormal.y() < _contacts[j]._contactNormal.y())
+				{
+					std::swap(_contacts[j+1], _contacts[j]);
+				}
+			}
+			else
+			{
+				if (_contacts[j+1]._contactNormal.y() > _contacts[j]._contactNormal.y())
+				{
+					std::swap(_contacts[j+1], _contacts[j]);
+				}
 			}
 		}
 	}

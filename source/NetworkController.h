@@ -143,7 +143,7 @@ public:
 protected:
 
 	static const unsigned short BROADCAST_PORT = 7777;
-	static const unsigned short TCPLISTEN_PORT = 1234;
+	static const unsigned short TCPLISTEN_PORT = 2869;
 
 	static const std::string BROADCAST_STRING;
 	static const std::string BROADCAST_REPLY_STRING;
