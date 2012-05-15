@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 // 
 // class MyWindow
 //   MyWindow interfaces between the native system window and the application

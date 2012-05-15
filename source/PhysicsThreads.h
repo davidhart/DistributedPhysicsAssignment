@@ -1,5 +1,4 @@
 // David Hart - 2012
-// TODO: Document
 
 #pragma once
 

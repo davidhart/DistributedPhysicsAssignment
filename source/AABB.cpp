@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #include "AABB.h"
 
 AABB::AABB()

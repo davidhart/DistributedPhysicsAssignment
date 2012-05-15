@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #pragma once
 
 #include "Networking.h"
@@ -160,10 +162,10 @@ public:
 	void GetLastMessage(std::string& messageOut);
 	void SetLastMessage(const std::string& messageIn);
 
-protected:
+	static unsigned short BROADCAST_PORT;
+	static unsigned short TCPLISTEN_PORT;
 
-	static const unsigned short BROADCAST_PORT = 7777;
-	static const unsigned short TCPLISTEN_PORT = 2869;
+protected:
 
 	static const std::string BROADCAST_STRING;
 	static const std::string BROADCAST_REPLY_STRING;

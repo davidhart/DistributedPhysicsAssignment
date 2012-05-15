@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 //
 // class Config
 //   The roles of the Config class are parsing of the config file and

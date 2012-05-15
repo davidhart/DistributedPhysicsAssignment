@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #include "Timer.h"
 
 Timer::Timer()

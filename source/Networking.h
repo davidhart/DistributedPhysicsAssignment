@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #pragma once
 
 #include <WinSock2.h>

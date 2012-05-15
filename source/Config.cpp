@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 
 #include "Config.h"
 #include "Util.h"
@@ -47,6 +47,22 @@ bool Config::Read(const char* filename, Application& application)
 			file >> elasticity;
 
 			application.SetElasticity(elasticity);
+		}
+		else if (token == "listen_port")
+		{
+			unsigned short port;
+
+			file >> port;
+
+			NetworkController::TCPLISTEN_PORT = port;
+		}
+		else if (token == "broadcast_port")
+		{
+			unsigned short port;
+
+			file >> port;
+
+			NetworkController::BROADCAST_PORT = port;
 		}
 		else
 		{

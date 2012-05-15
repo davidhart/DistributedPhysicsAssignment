@@ -1,3 +1,4 @@
+// David Hart - 2012
 #include "NetworkController.h"
 #include "World.h"
 #include "PhysicsThreads.h"
@@ -8,6 +9,9 @@ using namespace Networking;
 
 const std::string NetworkController::BROADCAST_STRING("Is anyone there?");
 const std::string NetworkController::BROADCAST_REPLY_STRING("Yes I am here");
+
+unsigned short NetworkController::BROADCAST_PORT = 7777;
+unsigned short NetworkController::TCPLISTEN_PORT = 2869;
 
 const double ObjectExchange::RECV_TIMEOUT = 3;
 

@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 
 #include "Matrix4.h"
 

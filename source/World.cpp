@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #include "World.h"
 
 Color World::PEER0_COLOR(0.0f, 1.0f, 0.4f);
@@ -212,12 +214,11 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 		{
 			Vector2i bucket = GetBucketForPoint(position);
 
-			if (bucket.x() > bucketXMax)
-			{
-				std::cout << bucket.x() << std::endl;
-				std::cout << bucketXMax << std::endl;
-				std::cout << position.x() << std::endl;
-			}
+			if (bucket.x() > bucketXMax) // Remove possible rounding errors
+				bucket.x(bucket.x() - 1);
+
+			if (bucket.x() < bucketXMin) // Remove possible rounding errors
+				bucket.x(bucket.x() + 1);
 
 			assert(bucket.x() >= bucketXMin);
 			assert(bucket.x() <= bucketXMax);
@@ -409,17 +410,11 @@ int World::GetNumObjects() const
 Vector2i World::GetBucketForPoint(const Vector2d& point) const
 {
 
-	Vector2d p(Util::Clamp(point.x(), _worldMin.x(), _worldMax.x()-Util::EPSILON),
-		Util::Clamp(point.y(), _worldMin.y(), _worldMax.y()-Util::EPSILON));
+	Vector2d p(Util::Clamp(point.x(), _worldMin.x(), _worldMax.x()),
+		Util::Clamp(point.y(), _worldMin.y(), _worldMax.y()));
 
 	 Vector2i bucket(Vector2d(GetNumBucketsWide(), GetNumBucketsTall()) * 
 					 (p - _worldMin) / (_worldMax - _worldMin));
-
-	 if (bucket.x() >= GetNumBucketsWide())
-	 {
-		 bucket.x(GetNumBucketsWide() - 1);
-		 std::cout << bucket.x() << std::endl;
-	 }
 
 	 return bucket;
 }

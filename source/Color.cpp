@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #include "Color.h"
 
 Color::Color(unsigned int color) :

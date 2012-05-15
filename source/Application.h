@@ -1,4 +1,4 @@
-// David Hart - 2011
+// David Hart - 2012
 // 
 // class Application
 //   Application's responsibility is rendering and updating the objects

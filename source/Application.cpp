@@ -25,6 +25,8 @@ void Application::Create(MyWindow& window)
 {
 	_renderer.Create(&window);
 	_world.Create(&_renderer, Vector2d(-100, 0), Vector2d(100, 100));
+
+	// Initialise some objects
 	
 	const int BOX_GRID_W = 80;
 	const int BOX_GRID_H = 10;
@@ -94,6 +96,7 @@ void Application::DisposeHudFont()
 
 void Application::Print(const std::string& string, int x, int y)
 {
+	// Calculate clipping space position
 	float xPos = x / (float)_width * 2 - 1;
 	float yPos = y / (float)_height * -2 + 1;
 
@@ -173,6 +176,7 @@ void Application::Update(double delta)
 
 	_elapsed += delta;
 
+	// If a second has passed update the physics framerate and render framerate counters
 	if (_elapsed > 1)
 	{
 		_framesPerSec = _frameCount;
@@ -235,6 +239,7 @@ void Application::UpdateCamera(double delta)
 
 void Application::SendUserInputToWorld()
 {
+	// Update the input buffer of world
 	if (_mouseState._changed)
 	{
 		_world.UpdateMouseInput(TranslateCursorToWorldCoords(_mouseState._cursor), _mouseState._leftButton, _mouseState._rightButton);

@@ -1,3 +1,5 @@
+// David Hart - 2012
+
 #pragma once
 
 template <typename T> void Message::Append(const T& value)
