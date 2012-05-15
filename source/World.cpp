@@ -412,7 +412,10 @@ Vector2i World::GetBucketForPoint(const Vector2d& point) const
 					 (p - _worldMin) / (_worldMax - _worldMin));
 
 	 if (bucket.x() >= GetNumBucketsWide())
+	 {
 		 bucket.x(GetNumBucketsWide() - 1);
+		 std::cout << bucket.x() << std::endl;
+	 }
 
 	 return bucket;
 }

@@ -704,11 +704,6 @@ unsigned BlobbyObject::GetSerializationType()
 	return OBJECT_BLOBBY;
 }
 
-void BlobbyObject::ProcessCollisions(World&)
-{
-
-}
-
 void BlobbyObject::SetPosition(const Vector2d& position)
 {
 	// Move sub objects relative to main objects

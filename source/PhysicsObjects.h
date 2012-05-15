@@ -254,7 +254,6 @@ namespace Physics
 		
 		void UpdateShape(World& world);
 		unsigned GetSerializationType();
-		void ProcessCollisions(World& world);
 
 		static const int NUM_PARTS = 16;
 
