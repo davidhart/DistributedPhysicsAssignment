@@ -2,6 +2,7 @@
 #include "World.h"
 #include "PhysicsThreads.h"
 #include <iostream>
+#include <sstream>
 
 using namespace Networking;
 
@@ -71,7 +72,7 @@ void ObjectExchange::ReceiveState(TcpSocket& socket)
 
 		if (!message.Read(messageType))
 		{
-			std::cout << "Invalid message received" << std::endl;
+			//Invalid message received
 			socket.Close();
 			return;
 		}
@@ -87,14 +88,9 @@ void ObjectExchange::ReceiveState(TcpSocket& socket)
 		else
 		{
 			socket.Close();
-			std::cout << "Invalid message received" << std::endl;
+			//Invalid message received
 			return;
 		}
-	}
-
-	if (!socket.IsOpen())
-	{
-		std::cout << "peer timed out" << std::endl;
 	}
 }
 
@@ -339,7 +335,7 @@ void ObjectExchange::ReceiveInitialisationData(TcpSocket& socket)
 				socket.Close();
 				return;
 			}
-			std::cout << "Recieving " << objectsToRead << " objects" << std::endl;
+
 			_initialisationDataIn._objectsRead = 0;
 			_initialisationDataIn._objects.resize(objectsToRead);
 
@@ -398,7 +394,6 @@ void ObjectExchange::ExchangeInitialisation()
 {
 	Threading::ScopedLock lock (_exchangeMutex);
 
-	std::cout << "received " << _initialisationDataIn._objects.size() << "objects " << std::endl;
 	_world.ClearObjects();
 
 	for (unsigned i = 0; i < _initialisationDataIn._objects.size(); ++i)
@@ -617,8 +612,6 @@ void ObjectExchange::ProcessOwnershipRequests()
 			_objectMigrationOut.push_back(migration);
 		}
 	}
-
-	// TODO: request object with spring attached
 }
 
 NetworkController::NetworkController() :
@@ -646,6 +639,18 @@ unsigned NetworkController::ThreadMain()
 	return 0;
 }
 
+void NetworkController::GetLastMessage(std::string& out)
+{
+	Threading::ScopedLock lock(_messageMutex);
+
+	out = _message;
+}
+
+void NetworkController::SetLastMessage(const std::string& message)
+{
+	_message = message;
+}
+
 void NetworkController::Shutdown()
 {
 	_shutDown = true;
@@ -665,6 +670,8 @@ SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
 
 	_broadcastReplyMessage.Append(BROADCAST_REPLY_STRING);
 	_broadcastReplyMessage.Append(TCPLISTEN_PORT);
+
+	SetLastMessage("Session Created, press L to leave session");
 }
 
 void SessionMasterController::ExchangeState()
@@ -700,7 +707,6 @@ void SessionMasterController::DoTick()
 	// If something caused the client to disconnect, listen for a new client
 	if (_state != LISTENING_CLIENT && !_clientSocket.IsOpen())
 	{
-		std::cout << "revert to listen state" << std::endl;
 		_state = LISTENING_CLIENT;
 	}
 
@@ -726,7 +732,7 @@ void SessionMasterController::DoTick()
 		_hadPeerConnected = false;
 		_state = DROPPING_CLIENT;
 		_clientSocket.Close();
-		std::cout << "Peer lost" << std::endl;
+		SetLastMessage("Peer disconnected/timed out");
 	}
 }
 
@@ -749,7 +755,12 @@ void SessionMasterController::DoAcceptHostTick()
 	if (_tcpListenSocket.Accept(_clientSocket, address))
 	{
 		Threading::ScopedLock lock(_stateChangeMutex);
-		std::cout << "Client Connected " << address << std::endl;
+
+		std::stringstream ss;
+		ss << "Client Connected " << address;
+
+		SetLastMessage(ss.str());
+
 		_clientSocket.SetBlocking(false);
 		_hadPeerConnected = true;
 		_objectExchange.Reset();
@@ -781,12 +792,14 @@ void SessionMasterController::UpdatePeerId()
 	{
 		_worldThread.SetPeerId(0);
 		_worldThread.SetNumPeers(2);
+		_worldThread._world->SetOtherPeerId(1);
 	}
 	else
 	{
 		_worldThread.SetPeerId(0);
 		_worldThread.SetNumPeers(1);
 		_worldThread._world->SetPeerBounds(AABB(Vector2d(0, 0), Vector2d(0, 0)));
+		_worldThread._world->SetOtherPeerId(-1);
 	}
 }
 
@@ -798,6 +811,8 @@ WorkerController::WorkerController(GameWorldThread& worldThread) :
 {
 	_broadcastSocket.SetBlocking(false);
 	_broadcastMessage.Append(BROADCAST_STRING);
+
+	SetLastMessage("Attempting to find session");
 }
 
 void WorkerController::DoTick()
@@ -805,7 +820,6 @@ void WorkerController::DoTick()
 	// If something caused the socket to close, find a new host
 	if (_state != FINDING_HOST && !_serverSocket.IsOpen())
 	{
-		std::cout << "revert to find state" << std::endl;
 		_state = FINDING_HOST;
 	}
 
@@ -831,7 +845,7 @@ void WorkerController::DoTick()
 		_serverSocket.Close();
 		_hadPeerConnected = false;
 		_state = DROPPING_CLIENT;
-		std::cout << "Peer lost" << std::endl;
+		SetLastMessage("Peer disconnected/timed out");
 	}
 }
 
@@ -841,12 +855,14 @@ void WorkerController::UpdatePeerId()
 	{
 		_worldThread.SetPeerId(1);
 		_worldThread.SetNumPeers(2);
+		_worldThread._world->SetOtherPeerId(0);
 	}
 	else
 	{
 		_worldThread.SetPeerId(0);
 		_worldThread.SetNumPeers(1);
 		_worldThread._world->SetPeerBounds(AABB(Vector2d(0, 0), Vector2d(0, 0)));
+		_worldThread._world->SetOtherPeerId(-1);
 	}
 }
 
@@ -875,13 +891,26 @@ void WorkerController::DoFindHostTick()
 		serverAddress.SetPort(port);
 
 		// Attempt to connect
-		std::cout << "Attempting to connect to server " << serverAddress << std::endl;
+
+		std::stringstream ss;
+
+		ss << "Attempting to connect to server " << serverAddress;
+
+		SetLastMessage(ss.str());
+
 		_serverSocket = TcpSocket(serverAddress);
+		_serverAddress = serverAddress;
 		
 		if (_serverSocket.IsOpen())
 		{
 			Threading::ScopedLock lock(_stateChangeMutex);
-			std::cout << "Connected, awaiting initialization data" << std::endl;
+
+			std::stringstream ss;
+
+			ss << "Connected to " << serverAddress << ", awaiting initialisation";
+
+			SetLastMessage(ss.str());
+
 			_serverSocket.SetBlocking(false);
 			_hadPeerConnected = true;
 			_objectExchange.Reset();
@@ -889,7 +918,7 @@ void WorkerController::DoFindHostTick()
 		}
 		else
 		{
-			std::cout << "Connection failed" << std::endl;
+			SetLastMessage("Connection failed");
 		}
 	}
 }
@@ -902,6 +931,11 @@ void WorkerController::ReceiveInitialisationData()
 	{
 		Threading::ScopedLock lock(_stateChangeMutex);
 		_state = RECEIVED_INITIALISATION;
+
+		std::stringstream ss;
+		ss << "Connected to " << _serverAddress << std::endl;
+
+		SetLastMessage(ss.str());
 	}
 }
 

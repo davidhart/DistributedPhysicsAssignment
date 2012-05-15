@@ -108,6 +108,8 @@ public:
 	void SetPeerId(unsigned id);
 	void SetNumPeers(unsigned numPeers);
 
+	void GetLastNetworkingMessage(std::string& out);
+
 private:
 
 	void ExitWorkers();

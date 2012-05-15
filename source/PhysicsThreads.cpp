@@ -221,28 +221,16 @@ GameWorldThread::GameWorldThread() :
 		_workers[i]->SetNumThreads(_workers.size()+1);
 
 	}
-
-	int minIndex = GetStartIndexForId(0, _numThreads, _world->GetNumBucketsWide());
-	int maxIndex = GetEndIndexForId(0, _numThreads, _world->GetNumBucketsWide());
-
-	std::cout << minIndex << " " << maxIndex << std::endl;
-
-	minIndex = GetStartIndexForId(1, _numThreads, _world->GetNumBucketsWide());
-	maxIndex = GetEndIndexForId(1, _numThreads, _world->GetNumBucketsWide());
-
-	std::cout << minIndex << " " << maxIndex << std::endl;
-
-	minIndex = GetStartIndexForId(2, _numThreads, _world->GetNumBucketsWide());
-	maxIndex = GetEndIndexForId(2, _numThreads, _world->GetNumBucketsWide());
-
-	std::cout << minIndex << " " << maxIndex << std::endl;
-
 }
 
 GameWorldThread::~GameWorldThread()
 {
 	if (_networkController != NULL)
+	{
+		_networkController->Shutdown();
+		_networkController->Join();
 		delete _networkController;
+	}
 
 	for (unsigned i = 0; i < _workers.size(); ++i)
 		delete _workers[i];
@@ -331,7 +319,7 @@ void GameWorldThread::PhysicsStep()
 	PhysicsWorkerThread::SolveCollisions();
 	JoinSolveCollisions();
 
-	if (_state != STATE_STANDALONE)
+	if (_networkController != NULL)
 	{
 		_networkController->ExchangeState();
 	}
@@ -356,6 +344,18 @@ void GameWorldThread::SanityCheckObjectsInBuckets()
 	if (test != _world->GetNumObjects())
 	{
 		std::cout << "Objects missing from buckets!!! " << test << std::endl;
+	}
+}
+
+void GameWorldThread::GetLastNetworkingMessage(std::string& out)
+{
+	Threading::ScopedLock lock(_stateChangeMutex);
+
+	out.clear();
+
+	if (_networkController != NULL)
+	{
+		_networkController->GetLastMessage(out);
 	}
 }
 
@@ -468,14 +468,12 @@ void GameWorldThread::JoinSolveCollisions()
 void GameWorldThread::CreateSession()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
-
+	 
 	if (_state == STATE_STANDALONE)
 	{
 		_networkController = new SessionMasterController(*this);
 		_state = STATE_SESSIONMASTER;
 		_networkController->Start();
-
-		std::cout << "Creating session" << std::endl;
 	}
 }
 
@@ -488,8 +486,6 @@ void GameWorldThread::JoinSession()
 		_networkController = new WorkerController(*this);
 		_state = STATE_SESSIONWORKER;
 		_networkController->Start();
-
-		std::cout << "Attempting to find session" << std::endl;
 	}
 }
 
@@ -499,12 +495,14 @@ void GameWorldThread::TerminateSession()
 
 	if (_state != STATE_STANDALONE)
 	{
-
-		delete _networkController;
-		_networkController = NULL;
 		_state = STATE_STANDALONE;
 
-		std::cout << "Session terminated" << std::endl;
+		_networkController->Shutdown();
+		_networkController->Join();
+
+		delete _networkController;
+
+		_networkController = NULL;
 	}
 }
 

@@ -157,6 +157,9 @@ public:
 	void Shutdown();
 	virtual void ExchangeState() = 0;
 
+	void GetLastMessage(std::string& messageOut);
+	void SetLastMessage(const std::string& messageIn);
+
 protected:
 
 	static const unsigned short BROADCAST_PORT = 7777;
@@ -168,6 +171,9 @@ protected:
 	virtual void DoTick() = 0;
 
 private:
+
+	Threading::Mutex _messageMutex;
+	std::string _message;
 
 	unsigned ThreadMain();
 	
@@ -264,4 +270,6 @@ private:
 	Threading::Mutex _stateChangeMutex;
 
 	bool _hadPeerConnected;
+
+	Networking::Address _serverAddress;
 };

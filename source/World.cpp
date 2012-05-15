@@ -1,5 +1,8 @@
 #include "World.h"
 
+Color World::PEER0_COLOR(0.0f, 1.0f, 0.4f);
+Color World::PEER1_COLOR(1.0f, 0.4f, 0.0f);
+
 World::World() :
 	_drawBuffer(0),
 	_readBuffer(0),
@@ -11,7 +14,8 @@ World::World() :
 	_colorMode(COLOR_PROPERTY),
 	_resetBlobbyPressed(false),
 	_blobby(NULL),
-	_peerBounds(Vector2d(0, 0), Vector2d(10, 10))
+	_peerBounds(Vector2d(0, 0), Vector2d(10, 10)),
+	_otherPeerId(-1)
 {
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
@@ -406,6 +410,9 @@ Vector2i World::GetBucketForPoint(const Vector2d& point) const
 	 Vector2i bucket(Vector2d(GetNumBucketsWide(), GetNumBucketsTall()) * 
 					 (p - _worldMin) / (_worldMax - _worldMin));
 
+	 if (bucket.x() >= GetNumBucketsWide())
+		 bucket.x(GetNumBucketsWide() - 1);
+
 	 return bucket;
 }
 
@@ -444,7 +451,7 @@ void World::HandleUserInteraction()
 		_objectTiedToCursor = NULL;
 	}
 
-	if (_resetBlobbyPressed)
+	if (_resetBlobbyPressed && _otherPeerId < 0) // Dont try to add an object if we have another peer
 	{
 		if (_blobby == NULL)
 			_blobby = AddBlobbyObject();
@@ -506,6 +513,11 @@ Physics::PhysicsObject* World::FindObjectAtPointInBucket(const Vector2d& point, 
 	return NULL;
 }
 
+void World::SetOtherPeerId(int id)
+{
+	_otherPeerId = id;
+}
+
 const std::vector<unsigned>& World::GetObjectsInBucket(int x, int y)
 {
 	return _objectBuckets[ GetBucketIndex( Vector2i(x, y) ) ];
@@ -551,9 +563,9 @@ Color World::GetObjectColor(Physics::PhysicsObject& object)
 	{
 	case COLOR_OWNERSHIP:
 		if (object.GetOwnerId() == 0)
-			return Color(0.0f, 1.0f, 0.4f);
+			return PEER0_COLOR;
 		else if (object.GetOwnerId() == 1)
-			return Color(1.0f, 0.4f, 0.0f);
+			return PEER1_COLOR;
 
 		break;
 
@@ -630,7 +642,13 @@ void World::UpdatePeerBoundaryLines()
 	if (_peerBoundsChanged)
 	{
 		Line l;
-		l._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+
+		if (_otherPeerId == 0)
+			l._color = PEER0_COLOR;
+		else if (_otherPeerId == 1)
+			l._color = PEER1_COLOR;
+		else
+			l._color = Color(1.0f, 1.0f, 1.0f, 1.0f);
 
 		l._points[0].y((float)_peerBounds.Min().y());
 		l._points[1].y((float)_peerBounds.Max().y());

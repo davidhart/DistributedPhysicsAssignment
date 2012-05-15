@@ -244,7 +244,7 @@ namespace Physics
 		bool TestCollision(BlobbyPart&, Contact&);
 	};
 
-	class BlobbyObject : public PhysicsObject
+	class BlobbyObject : public BlobbyPart
 	{
 
 	public:

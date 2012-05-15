@@ -96,12 +96,15 @@ public:
 
 	void ResetBlobbyPressed();
 
+	void SetOtherPeerId(int id);
+
 
 	// Threadsafe calls
 	void SetClientBounds(const AABB& bounds);
 	void GetClientBounds(AABB& bounds);
 	void SetPeerBounds(const AABB& bounds);
 	void GetPeerBounds(AABB& bounds);
+
 
 private:
 
@@ -177,4 +180,9 @@ private:
 	AABB _peerBounds;
 	AABB _clientBounds;
 	bool _peerBoundsChanged;
+
+	int _otherPeerId;
+
+	static Color PEER0_COLOR;
+	static Color PEER1_COLOR;
 };

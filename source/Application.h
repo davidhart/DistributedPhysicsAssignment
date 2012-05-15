@@ -51,6 +51,8 @@ public:
 
 	void ResetBlobby();
 
+	void DrawHud();
+
 private:
 
 	void Print(const std::string& string, int x, int y);

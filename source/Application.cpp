@@ -6,7 +6,7 @@
 #include <sstream>
 
 const float Application::CAMERA_PAN_SPEED = 1.0f;
-const float Application::CAMERA_ZOOM_SPEED = 3.0f;
+const float Application::CAMERA_ZOOM_SPEED = 6.0f;
 
 Application::Application() :
 	_frameCount(0),
@@ -79,7 +79,7 @@ void Application::CreateHudFont(MyWindow& window)
 	HFONT   font;                                                                           
 	HFONT   oldfont;                                                                        
 	_fontList = glGenLists(256);                                                        
-	font = CreateFont(-10, 0, 0, 0, FALSE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE|DEFAULT_PITCH, "System");                                      
+	font = CreateFont(14, 0, 0, 0, FALSE, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE|DEFAULT_PITCH, "Lucida Console");                                      
 	HDC hDC = GetWindowDC(window.GetSafeHwnd());
 	oldfont = (HFONT)SelectObject(hDC, font);          
 	wglUseFontBitmaps(hDC, 32, 96, _fontList);                         
@@ -112,10 +112,17 @@ void Application::Draw()
 
 	_world.Draw();
 
+	DrawHud();
+
+	_frameCount++;
+}
+
+void Application::DrawHud()
+{
 	Print("Simulation and Concurrency - David Hart", 0, 13);
 
 	std::stringstream ss;
-	ss << "Render framerate: " << _framesPerSec << "   " << "Physics framerate: " << _ticksPerSec;
+	ss << "Render framerate: " << _framesPerSec << "   Physics framerate: " << _ticksPerSec;
 
 	Print(ss.str(), 0, 13*2);
 
@@ -124,7 +131,31 @@ void Application::Draw()
 
 	Print(ss.str(), 0, 13*3);
 
-	_frameCount++;
+	Print("W, A, S, D  Pan Camera", 0, 13 * 4);
+	Print("+, -        Zoom Camera", 0, 13 * 5);
+
+	ss = std::stringstream();
+	ss << "1, 2, 3, 4  Change Rendermode (current: ";
+
+	if (_world.GetColorMode() == COLOR_OWNERSHIP)
+		ss << "ownership)";
+	else if (_world.GetColorMode() == COLOR_MASS)
+		ss << "mass)";
+	else if (_world.GetColorMode() == COLOR_MOTION)
+		ss << "motion)";
+	else if (_world.GetColorMode() == COLOR_PROPERTY)
+		ss << "object color)";
+
+	Print(ss.str(), 0, 13 * 6);
+
+	std::string networkMessage;
+
+	_worldThread.GetLastNetworkingMessage(networkMessage);
+
+	if (networkMessage.empty())
+		Print("M, J    Make/Join session", 0, 13*7);
+	else
+		Print(networkMessage, 0, 13*7);
 }
 
 void Application::Update(double delta)
