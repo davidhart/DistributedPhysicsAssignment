@@ -291,7 +291,7 @@ void GameWorldThread::PhysicsStep()
 	}
 
 	
-	double delta = _timer.GetTime();
+	double delta = _timer.GetTime() * _world->GetSimSpeed();
 	_timer.Start();
 
 	_world->HandleUserInteraction();

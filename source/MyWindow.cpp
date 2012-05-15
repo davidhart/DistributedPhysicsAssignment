@@ -148,6 +148,10 @@ void MyWindow::OnKeyboard(int key, bool down)
 	{
 		_application.ResetBlobby();
 	}
+	else if ('P' == key && down)
+	{
+		_application.PlayPauseToggle();
+	}
 }
 
 void MyWindow::OnMouseMove(int x, int y)

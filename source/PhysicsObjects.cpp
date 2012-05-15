@@ -266,8 +266,8 @@ void PhysicsObject::SolveContacts(World& world)
 	}
 
 
-	double elasticity = 0.8;
-	double friction = 0.05;
+	double elasticity = world.GetElasticity();
+	double friction = world.GetFriction();
 
 	Vector2d originalPosition = _state._position;
 
@@ -312,7 +312,7 @@ void PhysicsObject::SolveContacts(World& world)
 	_contacts.clear();
 }
 
-Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
+Vector2d PhysicsObject::CalculateAcceleration(const State& state, World& world) const
 {
 	Vector2d acceleration(0);
 
@@ -321,19 +321,19 @@ Vector2d PhysicsObject::CalculateAcceleration(const State& state) const
 		acceleration += _constraints[i]->CalculateAcceleration(state);
 	}
 	
-	return acceleration + Vector2d(0, -9.81) /*- state._velocity*0.999*/; // Gravity and drag
+	return acceleration + Vector2d(0, world.GetGravity()) /*- state._velocity*0.999*/; // Gravity and drag
 }
 
-void PhysicsObject::Integrate(double deltaTime)
+void PhysicsObject::Integrate(double deltaTime, World& world)
 {
 	_contacts.clear();
 
 	// Integrate using RK4 method
 	Derivative d;
-	Derivative a = EvaluateDerivative(_state, d, 0);
-    Derivative b = EvaluateDerivative(_state, a, deltaTime*0.5);
-    Derivative c = EvaluateDerivative(_state, b, deltaTime*0.5);
-    d = EvaluateDerivative(_state, c, deltaTime);
+	Derivative a = EvaluateDerivative(_state, d, 0, world);
+    Derivative b = EvaluateDerivative(_state, a, deltaTime*0.5, world);
+    Derivative c = EvaluateDerivative(_state, b, deltaTime*0.5, world);
+    d = EvaluateDerivative(_state, c, deltaTime, world);
 
 	Derivative derivative;
 	derivative._velocity = 1.0/6.0 * (a._velocity + 2.0*(b._velocity + c._velocity) + d._velocity);
@@ -343,7 +343,7 @@ void PhysicsObject::Integrate(double deltaTime)
 	_state._velocity += derivative._acceleration * deltaTime;
 }
 
-Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime)
+Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime, World& world)
 {
 	State state;
 	state._position = initialState._position + derivative._velocity * deltaTime;
@@ -351,7 +351,7 @@ Derivative PhysicsObject::EvaluateDerivative(const State& initialState, Derivati
 
 	Derivative d;
 	d._velocity = state._velocity;
-	d._acceleration = CalculateAcceleration(state);
+	d._acceleration = CalculateAcceleration(state, world);
 
 	return d;
 }

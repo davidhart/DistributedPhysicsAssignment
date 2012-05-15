@@ -15,7 +15,11 @@ World::World() :
 	_resetBlobbyPressed(false),
 	_blobby(NULL),
 	_peerBounds(Vector2d(0, 0), Vector2d(10, 10)),
-	_otherPeerId(-1)
+	_otherPeerId(-1),
+	_gravity(-9.81),
+	_friction(0.05),
+	_elasticity(0.8),
+	_simSpeed(1)
 {
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
@@ -394,7 +398,7 @@ void World::SwapWriteState()
 
 void World::UpdateObject(int object, double delta)
 {
-	_objects[object]->Integrate(delta);
+	_objects[object]->Integrate(delta, *this);
 }
 
 int World::GetNumObjects() const
@@ -711,4 +715,44 @@ void World::UpdateSpringLine()
 
 		_springBuffer.SetShapes(&l, 1);
 	}
+}
+
+void World::SetGravity(double gravity)
+{
+	_gravity = gravity;
+}
+
+double World::GetGravity()
+{
+	return _gravity;
+}
+
+void World::SetElasticity(double elasticity)
+{
+	_elasticity = elasticity;
+}
+
+double World::GetElasticity()
+{
+	return _elasticity;
+}
+
+void World::SetFriction(double friction)
+{
+	_friction = friction;
+}
+
+double World::GetFriction()
+{
+	return _friction;
+}
+
+void World::SetSimSpeed(double speed)
+{
+	_simSpeed = speed;
+}
+
+double World::GetSimSpeed()
+{
+	return _simSpeed;
 }

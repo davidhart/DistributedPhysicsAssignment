@@ -133,6 +133,8 @@ void Application::DrawHud()
 
 	Print("W, A, S, D  Pan Camera", 0, 13 * 4);
 	Print("+, -        Zoom Camera", 0, 13 * 5);
+	Print("P           Play/Pause", 0, 13 * 6);
+
 
 	ss = std::stringstream();
 	ss << "1, 2, 3, 4  Change Rendermode (current: ";
@@ -146,16 +148,21 @@ void Application::DrawHud()
 	else if (_world.GetColorMode() == COLOR_PROPERTY)
 		ss << "object color)";
 
-	Print(ss.str(), 0, 13 * 6);
+	Print(ss.str(), 0, 13 * 7);
 
 	std::string networkMessage;
 
 	_worldThread.GetLastNetworkingMessage(networkMessage);
 
 	if (networkMessage.empty())
-		Print("M, J    Make/Join session", 0, 13*7);
+		Print("M, J    Make/Join session", 0, 13*8);
 	else
-		Print(networkMessage, 0, 13*7);
+		Print(networkMessage, 0, 13*8);
+
+	if (_world.GetSimSpeed() == 0)
+	{
+		Print("--Paused--", _width / 2 - 40, _height/2);
+	}
 }
 
 void Application::Update(double delta)
@@ -344,7 +351,30 @@ void Application::SetColorModeProperty()
 	_world.SetColorMode(COLOR_PROPERTY);
 }
 
+void Application::PlayPauseToggle()
+{
+	if (_world.GetSimSpeed() > 0)
+		_world.SetSimSpeed(0);
+	else
+		_world.SetSimSpeed(1);
+}
+
 void Application::ResetBlobby()
 {
 	_world.ResetBlobbyPressed();
+}
+
+void Application::SetGravity(double gravity)
+{
+	_world.SetGravity(gravity);
+}
+
+void Application::SetFriction(double friction)
+{
+	_world.SetFriction(friction);
+}
+
+void Application::SetElasticity(double elasticity)
+{
+	_world.SetElasticity(elasticity);
 }

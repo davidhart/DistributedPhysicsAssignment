@@ -49,9 +49,15 @@ public:
 	void SetColorModeMotion();
 	void SetColorModeProperty();
 
+	void PlayPauseToggle();
+
 	void ResetBlobby();
 
 	void DrawHud();
+
+	void SetGravity(double gravity);
+	void SetFriction(double friction);
+	void SetElasticity(double elasticity);
 
 private:
 

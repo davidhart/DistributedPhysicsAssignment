@@ -110,10 +110,6 @@ namespace Physics
 	class PhysicsObject
 	{
 
-	private:
-
-
-
 	public:
 
 		PhysicsObject();
@@ -127,13 +123,13 @@ namespace Physics
 		double GetMass() const;
 		void SetMass(double mass);
 
-		virtual void Integrate(double deltaTime);
+		virtual void Integrate(double deltaTime, World& world);
 
 		virtual void UpdateShape(World& world) = 0;
 
 		virtual void ProcessCollisions(World& world) = 0;
 
-		// TODO: double dispatch object types
+		// Double dispatch of object types
 		virtual bool TestCollision(PhysicsObject&, Contact&) = 0;
 		virtual bool TestCollision(BoxObject&, Contact&) = 0;
 		virtual bool TestCollision(TriangleObject&, Contact&) = 0;
@@ -168,9 +164,9 @@ namespace Physics
 
 	private:
 
-		virtual Vector2d CalculateAcceleration(const State& state) const;
+		virtual Vector2d CalculateAcceleration(const State& state, World& world) const;
 
-		virtual Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime);
+		virtual Derivative EvaluateDerivative(const State& initialState, Derivative& derivative, double deltaTime, World& world);
 
 		double _mass;
 

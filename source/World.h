@@ -16,19 +16,7 @@ enum eColorMode
 	COLOR_PROPERTY,
 };
 
-class IShapeCreator
-{
-
-public:
-
-	virtual int CreateTriangle() = 0;
-	virtual int CreateQuad() = 0;
-
-	// TODO: updateshape
-
-};
-
-class World : public IShapeCreator
+class World
 {
 	typedef std::vector<unsigned> Bucket;
 
@@ -105,6 +93,17 @@ public:
 	void SetPeerBounds(const AABB& bounds);
 	void GetPeerBounds(AABB& bounds);
 
+	void SetGravity(double gravity);
+	double GetGravity();
+
+	void SetFriction(double friction);
+	double GetFriction();
+
+	void SetElasticity(double elasticity);
+	double GetElasticity();
+
+	void SetSimSpeed(double speed);
+	double GetSimSpeed();
 
 private:
 
@@ -190,4 +189,10 @@ private:
 
 	static Color PEER0_COLOR;
 	static Color PEER1_COLOR;
+
+	double _gravity;
+	double _elasticity;
+	double _friction;
+
+	double _simSpeed;
 };
