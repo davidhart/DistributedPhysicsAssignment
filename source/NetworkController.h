@@ -149,7 +149,7 @@ private:
 
 class NetworkController : public Threading::Thread
 {
-	
+
 public:
 
 	NetworkController();
@@ -170,14 +170,16 @@ protected:
 
 	virtual void DoTick() = 0;
 
+	bool _shutDown;
+
 private:
 
 	Threading::Mutex _messageMutex;
+	Threading::Event _shutdownEvent;
+
 	std::string _message;
 
 	unsigned ThreadMain();
-	
-	bool _shutDown;
 
 };
 

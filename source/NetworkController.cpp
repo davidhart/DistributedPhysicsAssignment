@@ -618,23 +618,28 @@ NetworkController::NetworkController() :
 	_shutDown(false)
 {
 
+
 }
 
 NetworkController::~NetworkController()
 {
-	Shutdown();
-	Join();
 }
 
 unsigned NetworkController::ThreadMain()
 {
 	while(!_shutDown)
 	{
-		// TODO: implement timer to control tickrate & timeouts
+		// TODO: implement timer to control tickrate
 		DoTick();
 
 		Sleep(1);
 	}
+
+	// Do one more tick after shutdown so that controller 
+	// definately has time to process the shutdown state
+	DoTick();
+
+	_shutdownEvent.Raise();
 
 	return 0;
 }
@@ -654,6 +659,8 @@ void NetworkController::SetLastMessage(const std::string& message)
 void NetworkController::Shutdown()
 {
 	_shutDown = true;
+
+	_shutdownEvent.Wait();
 }
 
 SessionMasterController::SessionMasterController(GameWorldThread& worldThread) :
@@ -726,7 +733,8 @@ void SessionMasterController::DoTick()
 	}
 
 	// If we lost a client
-	if (_hadPeerConnected && (!_clientSocket.IsOpen() || _objectExchange.Timeout()))
+	if (_shutDown || 
+		(_hadPeerConnected && (!_clientSocket.IsOpen() || _objectExchange.Timeout())))
 	{
 		Threading::ScopedLock lock(_stateChangeMutex);
 		_hadPeerConnected = false;
@@ -840,7 +848,8 @@ void WorkerController::DoTick()
 	}
 
 	// If we lost a peer
-	if (_hadPeerConnected && (!_serverSocket.IsOpen() || _objectExchange.Timeout()))
+	if (_shutDown || 
+		(_hadPeerConnected && (!_serverSocket.IsOpen() || _objectExchange.Timeout())))
 	{
 		_serverSocket.Close();
 		_hadPeerConnected = false;

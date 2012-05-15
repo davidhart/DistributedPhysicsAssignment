@@ -319,9 +319,20 @@ void GameWorldThread::PhysicsStep()
 	PhysicsWorkerThread::SolveCollisions();
 	JoinSolveCollisions();
 
-	if (_networkController != NULL)
 	{
-		_networkController->ExchangeState();
+		Threading::ScopedLock lock(_stateChangeMutex);
+
+		if (_networkController != NULL)
+		{
+			_networkController->ExchangeState();
+
+			// If we should be switching to standalone mode clean everything up
+			if (_state == STATE_STANDALONE)
+			{
+				delete _networkController;
+				_networkController = NULL;
+			}
+		}
 	}
 
 	_world->SwapWriteState();
@@ -469,7 +480,7 @@ void GameWorldThread::CreateSession()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
 	 
-	if (_state == STATE_STANDALONE)
+	if (_networkController == NULL)
 	{
 		_networkController = new SessionMasterController(*this);
 		_state = STATE_SESSIONMASTER;
@@ -481,7 +492,7 @@ void GameWorldThread::JoinSession()
 {
 	Threading::ScopedLock lock(_stateChangeMutex);
 
-	if (_state == STATE_STANDALONE)
+	if (_networkController == NULL)
 	{
 		_networkController = new WorkerController(*this);
 		_state = STATE_SESSIONWORKER;
@@ -495,14 +506,9 @@ void GameWorldThread::TerminateSession()
 
 	if (_state != STATE_STANDALONE)
 	{
-		_state = STATE_STANDALONE;
-
 		_networkController->Shutdown();
-		_networkController->Join();
 
-		delete _networkController;
-
-		_networkController = NULL;
+		_state = STATE_STANDALONE;
 	}
 }
 
