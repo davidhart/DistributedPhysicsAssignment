@@ -43,7 +43,7 @@ void Application::Create(MyWindow& window)
 		}
 	}
 
-	const int NUM_ROWS = 13;
+	const int NUM_ROWS = 14;
 	const double PYRAMID_OFFSET = 15;
 	for (int row = 0; row < NUM_ROWS; ++row)
 	{

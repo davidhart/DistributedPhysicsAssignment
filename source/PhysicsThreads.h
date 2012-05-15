@@ -5,6 +5,7 @@
 
 #include "NetworkController.h"
 #include "Threading.h"
+#include "Timer.h"
 #include <vector>
 
 class World;
@@ -130,9 +131,7 @@ private:
 	bool _shuttingDown;
 	unsigned _tickCount;
 
-	// TODO: move these into timer class
-	LARGE_INTEGER freq;
-	LARGE_INTEGER startTime;
+	Timer _timer;
 
 	Threading::Mutex _stateChangeMutex;
 

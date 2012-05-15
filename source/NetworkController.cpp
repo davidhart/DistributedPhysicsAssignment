@@ -8,6 +8,8 @@ using namespace Networking;
 const std::string NetworkController::BROADCAST_STRING("Is anyone there?");
 const std::string NetworkController::BROADCAST_REPLY_STRING("Yes I am here");
 
+const double ObjectExchange::RECV_TIMEOUT = 3;
+
 ObjectExchange::ObjectExchange(GameWorldThread& worldThread, unsigned peerId) :
 	_worldThread(worldThread),
 	_world(*(worldThread._world)),
@@ -36,6 +38,26 @@ void ObjectExchange::Reset()
 	_initialisationDataIn._objectsRead = 0;
 	_initialisationDataIn._objects.clear();
 	_initialisationDataIn._initialisationReceived = false;
+
+	_timeout.Start();
+}
+
+bool ObjectExchange::Timeout()
+{
+	Threading::ScopedLock lock(_exchangeMutex);
+
+	return _timeout.GetTime() > RECV_TIMEOUT; 
+}
+
+void ObjectExchange::ReloadLastKnownPosition()
+{
+	for (int i = 0; i < _world.GetNumObjects(); i++)
+	{
+		Physics::PhysicsObject* object = _world.GetObject(i);
+
+		object->SetPosition(_lastReceivedObjectState[i].position);
+		object->SetVelocity(_lastReceivedObjectState[i].velocity);
+	}
 }
 
 void ObjectExchange::ReceiveState(TcpSocket& socket)
@@ -139,6 +161,8 @@ void ObjectExchange::HandleUpdateMessage(TcpSocket& socket, Message& message)
 		std::swap(_updateData._peerBoundsReceived, _updateData._peerBoundsUpdate);
 		_updateData._objectsReceived.clear();
 		_updateData._objectsRead = 0;
+
+		_timeout.Start();
 	}
 }
 
@@ -242,9 +266,11 @@ void ObjectExchange::ExchangeUpdatesWithWorld()
 
 void ObjectExchange::GatherInitialisationData()
 {
-	unsigned numObjects = _worldThread._world->GetNumObjects();
+	unsigned numObjects = _world.GetNumObjects();
 	_initialisationDataOut._messagesSent = 0;
 	const int objectStride = sizeof(unsigned) * 2 + sizeof(double) * 5;
+
+	_lastReceivedObjectState.resize(_world.GetNumObjects());
 
 	Message message;
 	message.Append(numObjects);
@@ -268,6 +294,9 @@ void ObjectExchange::GatherInitialisationData()
 		message.Append(object->GetVelocity().y());
 		message.Append(object->GetColor().To32BitColor());
 		message.Append(object->GetMass());
+
+		_lastReceivedObjectState[i].position = object->GetPosition();
+		_lastReceivedObjectState[i].velocity = object->GetVelocity();
 	}
 
 	if (message.Size() != sizeof(unsigned short))
@@ -313,6 +342,8 @@ void ObjectExchange::ReceiveInitialisationData(TcpSocket& socket)
 			std::cout << "Recieving " << objectsToRead << " objects" << std::endl;
 			_initialisationDataIn._objectsRead = 0;
 			_initialisationDataIn._objects.resize(objectsToRead);
+
+			_lastReceivedObjectState.resize(objectsToRead);
 		}
 
 		while(_initialisationDataIn._objectsRead < _initialisationDataIn._objects.size() 
@@ -474,6 +505,10 @@ void ObjectExchange::StoreNewPositionUpdates()
 			message.Append(object->GetPosition().y());
 			message.Append(object->GetVelocity().x());
 			message.Append(object->GetVelocity().y());
+
+			_lastReceivedObjectState[i].position = object->GetPosition();
+			_lastReceivedObjectState[i].velocity = object->GetVelocity();
+
 			appended++;
 		}
 	}
@@ -497,8 +532,14 @@ void ObjectExchange::ProcessReceivedPositionUpdates()
 		const ObjectState& objectState = _updateData._objectsUpdate[i];
 		Physics::PhysicsObject* object = _world.GetObject(objectState.id);
 
-		object->SetPosition(Vector2d(objectState.x, objectState.y));
-		object->SetVelocity(Vector2d(objectState.vx, objectState.vy));
+		Vector2d position (objectState.x, objectState.y);
+		Vector2d velocity (objectState.vx, objectState.vy);
+		
+		object->SetPosition(position);
+		object->SetVelocity(velocity);
+
+		_lastReceivedObjectState[objectState.id].position = position;
+		_lastReceivedObjectState[objectState.id].velocity = velocity;
 	}
 
 	// Clear these updates to be sure we don't apply them again
@@ -647,6 +688,8 @@ void SessionMasterController::ExchangeState()
 	}
 	else if (_state == DROPPING_CLIENT)
 	{
+		_objectExchange.ReloadLastKnownPosition();
+
 		UpdatePeerId();
 		_state = LISTENING_CLIENT;
 	}
@@ -677,11 +720,13 @@ void SessionMasterController::DoTick()
 	}
 
 	// If we lost a client
-	if (_hadPeerConnected && !_clientSocket.IsOpen())
+	if (_hadPeerConnected && (!_clientSocket.IsOpen() || _objectExchange.Timeout()))
 	{
 		Threading::ScopedLock lock(_stateChangeMutex);
 		_hadPeerConnected = false;
 		_state = DROPPING_CLIENT;
+		_clientSocket.Close();
+		std::cout << "Peer lost" << std::endl;
 	}
 }
 
@@ -781,10 +826,12 @@ void WorkerController::DoTick()
 	}
 
 	// If we lost a peer
-	if (_hadPeerConnected && !_serverSocket.IsOpen())
+	if (_hadPeerConnected && (!_serverSocket.IsOpen() || _objectExchange.Timeout()))
 	{
+		_serverSocket.Close();
 		_hadPeerConnected = false;
 		_state = DROPPING_CLIENT;
+		std::cout << "Peer lost" << std::endl;
 	}
 }
 
@@ -897,6 +944,8 @@ void WorkerController::ExchangeState()
 	}
 	else if (_state == DROPPING_CLIENT)
 	{
+		_objectExchange.ReloadLastKnownPosition();
+
 		_state = FINDING_HOST;
 		UpdatePeerId();
 	}

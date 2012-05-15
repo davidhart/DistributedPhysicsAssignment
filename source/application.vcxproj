@@ -98,6 +98,7 @@
     <ClCompile Include="ShaderProgram.cpp" />
     <ClCompile Include="ShapeBatch.cpp" />
     <ClCompile Include="Threading.cpp" />
+    <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Uncopyable.cpp" />
     <ClCompile Include="Util.cpp" />
     <ClCompile Include="VertexBinding.cpp" />
@@ -121,6 +122,7 @@
     <ClInclude Include="ShaderProgram.h" />
     <ClInclude Include="ShapeBatch.h" />
     <ClInclude Include="Threading.h" />
+    <ClInclude Include="Timer.h" />
     <ClInclude Include="Uncopyable.h" />
     <ClInclude Include="Util.h" />
     <ClInclude Include="Vector.h" />

@@ -208,7 +208,7 @@ GameWorldThread::GameWorldThread() :
 {
 	SetThreadId(0);
 	
-	for (unsigned i = 0; i < 2; ++i)
+	for (unsigned i = 0; i < 1; ++i)
 	{
 		_workers.push_back(new PhysicsWorkerThread());
 		_workers[i]->SetThreadId(i+1);
@@ -260,8 +260,7 @@ void GameWorldThread::SetWorld(World* world)
 
 void GameWorldThread::BeginThreads()
 {
-	QueryPerformanceFrequency(&freq);
-	QueryPerformanceCounter(&startTime);
+	_timer.Start();
 
 	Start();
 
@@ -303,11 +302,9 @@ void GameWorldThread::PhysicsStep()
 		ExitWorkers();
 	}
 
-	// TODO: timer class
-	LARGE_INTEGER endTime;
-	QueryPerformanceCounter(&endTime);
 	
-	double delta = (double)(endTime.QuadPart-startTime.QuadPart)/freq.QuadPart;
+	double delta = _timer.GetTime();
+	_timer.Start();
 
 	_world->HandleUserInteraction();
 	
@@ -342,8 +339,6 @@ void GameWorldThread::PhysicsStep()
 	_world->SwapWriteState();
 
 	_tickCount++; // Record the step for performance measurement
-
-	startTime = endTime;
 }
 
 void GameWorldThread::SanityCheckObjectsInBuckets()

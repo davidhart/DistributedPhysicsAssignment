@@ -46,6 +46,7 @@
     <ClCompile Include="AABB.cpp">
       <Filter>Util</Filter>
     </ClCompile>
+    <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
@@ -107,6 +108,7 @@
     <ClInclude Include="AABB.h">
       <Filter>Util</Filter>
     </ClInclude>
+    <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Graphics">

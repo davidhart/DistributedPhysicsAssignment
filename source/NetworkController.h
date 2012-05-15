@@ -4,6 +4,7 @@
 #include "Uncopyable.h"
 #include "Threading.h"
 #include "AABB.h"
+#include "Timer.h"
 #include <vector>
 #include <queue>
 
@@ -50,6 +51,12 @@ struct ObjectState
 	double vy;
 };
 
+struct PositionVelocity
+{
+	Vector2d position;
+	Vector2d velocity;
+};
+
 class ObjectExchange
 {
 
@@ -73,6 +80,10 @@ public:
 
 	void Reset();
 
+	bool Timeout();
+
+	void ReloadLastKnownPosition();
+
 private:
 
 	void HandleUpdateMessage(Networking::TcpSocket& socket, Networking::Message& message);
@@ -87,6 +98,8 @@ private:
 
 	std::vector<ObjectMigration> _objectMigrationOut;
 	std::vector<ObjectMigration> _objectMigrationIn;
+
+	std::vector<PositionVelocity> _lastReceivedObjectState;
 
 	struct
 	{
@@ -128,6 +141,10 @@ private:
 	GameWorldThread& _worldThread;
 
 	unsigned _peerId;
+
+	Timer _timeout;
+
+	static const double RECV_TIMEOUT;
 };
 
 class NetworkController : public Threading::Thread

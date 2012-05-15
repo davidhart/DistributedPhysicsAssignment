@@ -204,6 +204,13 @@ void World::BroadPhase(int bucketXMin, int bucketXMax)
 		{
 			Vector2i bucket = GetBucketForPoint(position);
 
+			if (bucket.x() > bucketXMax)
+			{
+				std::cout << bucket.x() << std::endl;
+				std::cout << bucketXMax << std::endl;
+				std::cout << position.x() << std::endl;
+			}
+
 			assert(bucket.x() >= bucketXMin);
 			assert(bucket.x() <= bucketXMax);
 
