@@ -77,6 +77,7 @@ namespace Physics
 		void SetSpringConstant(double k);
 		void SetDampingConstant(double b);
 		void SetObjectSpaceAttachmentPoint(const Vector2d& position);
+		Vector2d GetAttachmentPoint();
 
 	private:
 		

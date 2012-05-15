@@ -19,7 +19,6 @@ World::World() :
 {
 	_objectBuckets.resize(GetNumBucketsTall()*GetNumBucketsWide());
 
-
 	_cursorSpring.SetSpringConstant(1000);
 	_cursorSpring.SetDampingConstant(100);
 	for (unsigned i = 0; i < _objectBuckets.size(); ++i)
@@ -56,6 +55,7 @@ void World::Create(const Renderer* renderer, const Vector2d& worldMin, const Vec
 
 	_shapeBatch.AddArray(&_quadBuffer);
 	_shapeBatch.AddArray(&_triangleBuffer);
+	_shapeBatch.AddArray(&_springBuffer);
 
 	_worldBoundaryLines.resize(4 + // World Boundary
 								(GetNumBucketsWide() - 1) + (GetNumBucketsTall() - 1)); // Grid lines
@@ -334,6 +334,7 @@ void World::Draw()
 	SwapDrawState();
 
 	UpdatePeerBoundaryLines();
+	UpdateSpringLine();
 
 	_quadBuffer.SetShapes(GetQuadDrawBuffer(), _buffers[_drawBuffer]._quads.size());
 	_triangleBuffer.SetShapes(GetTriangleDrawBuffer(), _buffers[_drawBuffer]._triangles.size());
@@ -449,6 +450,11 @@ void World::HandleUserInteraction()
 	{
 		_objectTiedToCursor->RemoveConstraint(&_cursorSpring);
 		_objectTiedToCursor = NULL;
+	}
+
+	if (_objectTiedToCursor != NULL)
+	{
+		_springEnd = _objectTiedToCursor->GetPosition() + _cursorSpring.GetAttachmentPoint();
 	}
 
 	if (_resetBlobbyPressed && _otherPeerId < 0) // Dont try to add an object if we have another peer
@@ -679,5 +685,27 @@ void World::UpdatePeerBoundaryLines()
 		_peerBoundaryBuffer.SetShapes(&_peerBoundaryLines[0], _peerBoundaryLines.size());
 
 		_peerBoundsChanged = false;
+	}
+}
+
+void World::UpdateSpringLine()
+{
+	Threading::ScopedLock lock(_springChangeMutex);
+
+	if (_objectTiedToCursor)
+	{
+		Line l;
+		l._points[0] = Vector2f(_cursor);
+		l._points[1] = Vector2f(_springEnd);
+		l._color = Color(1.0f, 0.0f, 0.0f, 1.0f);
+
+		_springBuffer.SetShapes(&l, 1);
+	}
+	else
+	{
+		Line l;
+		l._points[0] = l._points[1] = Vector2f(0);
+
+		_springBuffer.SetShapes(&l, 1);
 	}
 }

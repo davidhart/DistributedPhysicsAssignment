@@ -129,6 +129,7 @@ private:
 	
 	 // Sould be called from render thread only
 	void UpdatePeerBoundaryLines();
+	void UpdateSpringLine();
 
 	int _writeBuffer;
 	int _readBuffer;
@@ -152,6 +153,9 @@ private:
 	Threading::Mutex _stateChangeMutex;
 	Threading::Mutex _userInteractionMutex;
 	Threading::Mutex _boundsChangeMutex;
+	Threading::Mutex _springChangeMutex;
+
+	Vector2d _springEnd;
 
 	Vector2d _cursor;
 	bool _leftButton;
@@ -160,6 +164,7 @@ private:
 	ShapeBatch _shapeBatch;
 	LineArray _worldBoundaryBuffer;
 	LineArray _peerBoundaryBuffer;
+	LineArray _springBuffer;
 	QuadArray _quadBuffer;
 	TriangleArray _triangleBuffer;
 

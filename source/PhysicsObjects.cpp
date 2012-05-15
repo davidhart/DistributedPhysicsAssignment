@@ -100,6 +100,11 @@ void FixedEndSpringConstraint::SetObjectSpaceAttachmentPoint(const Vector2d& pos
 	_attachmentPoint = position;
 }
 
+Vector2d FixedEndSpringConstraint::GetAttachmentPoint()
+{
+	return _attachmentPoint;
+}
+
 LengthSpring::LengthSpring() :
 	_k(80),
 	_b(1.5),
